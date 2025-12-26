@@ -81,7 +81,7 @@ class TitleState extends MusicBeatState
 	var showingIntro:Bool = false;
 	var introFinished:Bool = false;
 	var skipTimer:Float = 0;
-	var canSkip:Bool = false;
+	var canSkip:Bool = true;
 
 	override public function create():Void
 	{
@@ -174,10 +174,6 @@ class TitleState extends MusicBeatState
 			introVideo.load(videoPath);
 			introVideo.play();
 			add(introVideo);
-
-			new FlxTimer().start(1, function(tmr:FlxTimer) {
-				canSkip = true;
-			});
 		}
 		else
 		{
