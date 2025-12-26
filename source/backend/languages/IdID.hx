@@ -238,6 +238,7 @@ class IdID
         "setting_opponent_mode" => "Mode Lawan",
         "setting_no_drop_penalty" => "Tidak Ada Denda",
         "setting_botplay" => "Botplay",
+        "setting_little_timmy_mode" => "Mode Timmy Kecil",
 
         // Graphics Settings
         "setting_low_quality" => "Kualitas Rendah",
@@ -321,9 +322,9 @@ class IdID
         "description_vsync" => "Jika dicentang, mengaktifkan VSync dengan memperbaiki tearing layar dengan mengorbankan pembatasan FPS sesuai dengan kecepatan refresh monitor Anda.\n(Anda perlu menrestart game agar perubahan berlaku)",
         "setting_pause_music" => "Jeda Lagu Layar:",
         "setting_pause_music-none" => "Tidak ada",
-        "setting_pause_music-tea-time" => "Waktu minum teh",
+        "setting_pause_music-tea_time" => "Waktu minum teh",
         "setting_pause_music-breakfast" => "Sarapan",
-        "setting_pause_music-breakfast-pico" => "Sarapan (Pico)",
+        "setting_pause_music-breakfast_pico" => "Sarapan (Pico)",
         "description_pause_music" => "Lagu apa yang Anda sukai untuk layar jeda?",
         "setting_check_for_updates" => "Periksa Pembaruan",
         "description_check_for_updates" => "Pada versi rilis, aktifkan opsi ini untuk memeriksa pembaruan saat Anda memulai game.",
