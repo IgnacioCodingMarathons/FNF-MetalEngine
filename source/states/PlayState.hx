@@ -2612,25 +2612,6 @@ class PlayState extends MusicBeatState
 
 		super.update(elapsed);
 
-		if(videoCutscene != null && videoCutscene.videoSprite != null)
-		{
-			videoCutscene.videoSprite.bitmap.rate = paused ? 0 : playbackRate;
-		}
-
-		if (ClientPrefs.data.littleTimmyMode && cpuControlled) {
-			for (daNote in notes) {
-				if (!daNote.blockHit && !daNote.ignoreNote && daNote.mustPress && daNote.canBeHit) {
-					if (daNote.isSustainNote) {
-						if (daNote.canBeHit) {
-							goodNoteHit(daNote);
-						}
-					} else if (daNote.strumTime <= Conductor.songPosition || daNote.isSustainNote) {
-						goodNoteHit(daNote);
-					}
-				}
-			}
-		}
-
 		setOnScripts('curDecStep', curDecStep);
 		setOnScripts('curDecBeat', curDecBeat);
 
@@ -4835,12 +4816,6 @@ class PlayState extends MusicBeatState
 		
 		// Guardar nota en el replay (solo si no estamos en modo replay)
 		if(!note.isSustainNote) invalidateNote(note);
-
-		if (ClientPrefs.data.littleTimmyMode && cpuControlled) {
-			var isHoldNote = note.animation.curAnim.name.endsWith("hold");
-			var resetTime = isHoldNote ? 0.20 : 0.05;
-			playerStrums.members[note.noteData].resetAnim = resetTime;
-		}
 	}
 
 	public function invalidateNote(note:Note):Void {
