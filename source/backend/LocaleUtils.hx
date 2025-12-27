@@ -373,4 +373,16 @@ class LocaleUtils
         
         return '$dateStr - $timeStr';
     }
+
+    // Backwards-compatible wrapper used by older codepaths
+    public static function loadDeviceDateTimeSettings():Void
+    {
+        init();
+    }
+
+    // Backwards-compatible name used across the codebase
+    public static function formatDateTimeAccordingToDevice(date:Date):String
+    {
+        return formatDateTime(date);
+    }
 }
