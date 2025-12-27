@@ -269,6 +269,7 @@ class IdID
         "setting_note_skins-chip" => "Chip",
         "description_note_skins" => "Pilih Note skin yang Anda sukai",
         "setting_note_splashes" => "Note Splashes:",
+        "setting_note_splashes-none" => "Tidak ada",
         "setting_note_splashes-diamond" => "Berlian",
         "setting_note_splashes-electric" => "Listrik",
         "setting_note_splashes-sparkles" => "Kilauan",
