@@ -16,8 +16,6 @@
 
 Engine based in Psych 1.0.4 with modcharts like NotITG and compatible with hxcodec videos from Psych mods 0.6.3 and 0.7.3.
 
-Follow the [Plus Engine notices on WhatsApp](https://whatsapp.com/channel/0029Vb6hfI9LdQeeQhhm5L1U) for updates, tips, and more.
-
 ## Contributors
 
 <table>
@@ -39,6 +37,22 @@ Follow the [Plus Engine notices on WhatsApp](https://whatsapp.com/channel/0029Vb
       </a>
       <br />
       <sub>Translate</sub>
+    </td>
+  </tr>
+</table>
+
+## Special Thanks
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/Slushi-GitHub">
+        <img src="https://github.com/Slushi-Github.png" width="100px;" alt="Slushi-GitHub"/>
+        <br />
+        <sub><b>Slushi GitHub</b></sub>
+      </a>
+      <br />
+      <sub>Creator of several used Slushi Engine codes</sub>
     </td>
   </tr>
 </table>
