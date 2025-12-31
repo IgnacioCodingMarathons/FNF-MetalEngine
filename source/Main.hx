@@ -5,6 +5,7 @@ import debug.TraceDisplay;
 import debug.TraceButton;
 import debug.DebugButton;
 import backend.ClientPrefs;
+import backend.Screenshot;
 import flixel.FlxGame;
 import flixel.FlxState;
 import openfl.Lib;
@@ -29,6 +30,8 @@ import states.CopyState;
 #end
 import backend.Highscore;
 import lime.system.System as LimeSystem;
+
+import lenin.slushithings.windows.WindowsAPI;
 
 // NATIVE API STUFF, YOU CAN IGNORE THIS AND SCROLL //
 #if (linux && !debug)
@@ -57,6 +60,12 @@ class Main extends Sprite
 	public static var watermarkSprite:Sprite = null;
 	public static var watermark:Bitmap = null;
 
+	// Window focus management
+	public static var focused:Bool = true;
+	var oldVol:Float = 1.0;
+	var newVol:Float = 0.2;
+	public static var focusMusicTween:FlxTween;
+
 	// You can pretty much ignore everything from here on - your code should go in your states.
 
 	public static function main():Void
@@ -82,6 +91,10 @@ class Main extends Sprite
 
 		#if (cpp && windows)
 		backend.Native.fixScaling();
+		// Initialize window transparency support
+		WindowsAPI.setWindowLayered();
+		// Set window border color to purple (128, 41, 182)
+		WindowsAPI.setWindowBorderColor(128, 41, 182);
 		#end
 
 		#if VIDEOS_ALLOWED
@@ -172,6 +185,12 @@ class Main extends Sprite
 		Controls.instance = new Controls();
 		ClientPrefs.loadDefaultKeys();
 		#if ACHIEVEMENTS_ALLOWED Achievements.load(); #end
+
+		// Initialize Global Scripts system
+		#if HSCRIPT_ALLOWED
+		lenin.slushithings.codenameengine.scripting.GlobalScript.init();
+		#end
+
 		#if mobile
 		FlxG.signals.postGameStart.addOnce(() -> {
 			FlxG.scaleMode = new mobile.backend.MobileScaleMode();
@@ -242,6 +261,7 @@ class Main extends Sprite
 		
 		#if desktop 
 		FlxG.stage.addEventListener(KeyboardEvent.KEY_UP, toggleFullScreen);
+		Screenshot.init(); // Initialize screenshot folder
 		#end
 
 		#if mobile
@@ -251,17 +271,25 @@ class Main extends Sprite
 
 		Application.current.window.vsync = ClientPrefs.data.vsync;
 
+		#if (cpp && windows)
+		// Add window close handler for fade out effect
+		Application.current.window.onClose.add(onWindowClose);
+		// Add window focus handlers
+		Application.current.window.onFocusIn.add(onWindowFocusIn);
+		Application.current.window.onFocusOut.add(onWindowFocusOut);
+		#end
+
 		// shader coords fix
 		FlxG.signals.gameResized.add(function (w, h) {
-			// Solo reposicionamiento del FPS, sin escalado
+			// Only reposition the FPS counter, no scaling.
 			if(fpsVar != null) {
 				var marginX = 10;
 				var marginY = 3;
-				// Sin escalado, solo reposicionamiento
+				// No scaling, only reposition.
 				fpsVar.positionFPS(marginX, marginY, 1.0);
 			}
 			
-			// Reposicionar el botón de TraceDisplay
+			// Reposition TraceDisplay button.
 			#if mobile
 			if(traceButton != null) {
 				traceButton.updatePosition();
@@ -271,7 +299,7 @@ class Main extends Sprite
 			}
 			#end
 			
-			// Solo reposicionamiento de la marca de agua, sin escalado
+			// Only reposition the watermark, no scaling.
 			positionWatermark();
 			
 		     if (FlxG.cameras != null) {
@@ -297,7 +325,7 @@ class Main extends Sprite
 
 	function toggleFullScreen(event:KeyboardEvent) {
 		if (Controls.instance.justReleased('fullscreen'))
-			FlxG.fullscreen = !FlxG.fullscreen;
+			backend.WindowMode.toggleBorderlessFullscreen();
 	}
 
 	function positionWatermark():Void {
@@ -315,6 +343,50 @@ class Main extends Sprite
 			watermark.y = stageH - watermark.height * Math.abs(watermark.scaleY) - 30;
 		}
 	}
+
+	#if (cpp && windows)
+	function onWindowClose():Void
+	{
+		lenin.slushithings.windows.WindowsAPI.fadeOutAndExit();
+	}
+
+	function onWindowFocusOut():Void
+	{
+		focused = false;
+
+		oldVol = FlxG.sound.volume;
+		if (oldVol > 0.3)
+		{
+			newVol = 0.3;
+		}
+		else
+		{
+			if (oldVol > 0.1)
+			{
+				newVol = 0.1;
+			}
+			else
+			{
+				newVol = 0;
+			}
+		}
+
+		if (focusMusicTween != null) focusMusicTween.cancel();
+		focusMusicTween = FlxTween.tween(FlxG.sound, {volume: newVol}, 0.5);
+	}
+
+	function onWindowFocusIn():Void
+	{
+		new FlxTimer().start(0.2, function(tmr:FlxTimer) {
+			focused = true;
+		});
+
+		// Normal global volume when focused
+		if (focusMusicTween != null) focusMusicTween.cancel();
+
+		focusMusicTween = FlxTween.tween(FlxG.sound, {volume: oldVol}, 0.5);
+	}
+	#end
 
 	private function setupGame():Void
 	{

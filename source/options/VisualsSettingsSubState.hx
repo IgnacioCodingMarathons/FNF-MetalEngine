@@ -190,6 +190,12 @@ class VisualsSettingsSubState extends BaseOptionsMenu
 			BOOL);
 		addOption(option);
 		
+		var option:Option = new Option('Vanilla Transition',
+		    'If checked, uses the vanilla Psych Engine transition instead of the custom one.',
+			'vanillaTransition',
+			BOOL);
+		addOption(option);
+		
 		#if CHECK_FOR_UPDATES
 		var option:Option = new Option('Check for Updates',
 			'On Release builds, turn this on to check for updates when you start the game.',
@@ -249,6 +255,14 @@ class VisualsSettingsSubState extends BaseOptionsMenu
         option.changeValue = 1;
         option.decimals = 0;
 		addOption(option);
+
+		#if windows
+		var option:Option = new Option('Change Window Border Color With Note Hit', 
+			'Can change the color of the window border when you hit a note.\\n(Only for Windows 11, sry)', 
+			'changeWindowBorderColorWithNoteHit', 
+			BOOL);
+		addOption(option);
+		#end
 
 		super();
 		add(notes);

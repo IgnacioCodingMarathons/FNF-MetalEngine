@@ -50,6 +50,10 @@ import lenin.PreloadedChartNote;
 import lenin.HeavyChartManager;
 import lenin.NoteSpawner;
 
+#if windows
+import lenin.slushithings.windows.WindowsAPI;
+#end
+
 #if LUA_ALLOWED
 import psychlua.*;
 #else
@@ -138,8 +142,15 @@ class PlayState extends MusicBeatState
 	public var dadMap:Map<String, Character> = new Map<String, Character>();
 	public var gfMap:Map<String, Character> = new Map<String, Character>();
 
+	// Script arrays - supporting multiple script types
+	#if LUA_ALLOWED
+	public var luaArray:Array<FunkinLua> = [];
+	#end
+
 	#if HSCRIPT_ALLOWED
-	public var hscriptArray:Array<HScript> = [];
+	public var hscriptArray:Array<HScript> = [];          // Psych HScript (Iris)
+	public var scHSArray:Array<lenin.slushithings.scripting.SCScript> = [];  // Slushi Custom HScript (SC)
+	public var codeNameScripts:lenin.slushithings.codenameengine.scripting.ScriptPack;  // CodeName Engine HScript
 	#end
 
 	#if LUA_ALLOWED
@@ -351,6 +362,12 @@ class PlayState extends MusicBeatState
 	var lastEndCountdown:Int = -1;
 	var lastJudName:String = "None";
 	
+	#if windows
+	// Window border color tween system (Slushi Engine method)
+	var windowBorderColorTween:flixel.tweens.misc.NumTween;
+	var defaultBorderColor:Array<Int> = [128, 41, 182]; // Purple from Main.hx
+	#end
+	
 	// Modchart warning variables
 	var modchartWarningShown:Bool = false;
 	var isShowingModchartWarning:Bool = false;
@@ -406,7 +423,6 @@ class PlayState extends MusicBeatState
 
 	// Lua shit
 	public static var instance:PlayState;
-	#if LUA_ALLOWED public var luaArray:Array<FunkinLua> = []; #end
 
 	#if (LUA_ALLOWED || HSCRIPT_ALLOWED)
 	private var luaDebugGroup:FlxTypedGroup<psychlua.DebugLuaText>;
@@ -1042,7 +1058,8 @@ class PlayState extends MusicBeatState
 		FlxG.stage.addEventListener(KeyboardEvent.KEY_UP, onKeyRelease);
 
 		//PRECACHING THINGS THAT GET USED FREQUENTLY TO AVOID LAGSPIKES
-		if(ClientPrefs.data.hitsoundVolume > 0) Paths.sound('hitsound');
+		if(ClientPrefs.data.hitsoundVolume > 0 && ClientPrefs.data.hitSounds != "None") 
+			Paths.sound('hitsounds/' + ClientPrefs.data.hitSounds);
 		if(!ClientPrefs.data.ghostTapping) for (i in 1...4) Paths.sound('missnote$i');
 		Paths.image('alphabet');
 
@@ -3481,7 +3498,10 @@ class PlayState extends MusicBeatState
 			return;
 		}
 
+		// Opponent Mode: Invert camera logic
 		var isDad:Bool = (SONG.notes[sec].mustHitSection != true);
+		if (playOpponent) isDad = !isDad; // In opponent mode, flip camera focus
+		
 		moveCamera(isDad);
 		if (isDad)
 			callOnScripts('onMoveCamera', ['dad']);
@@ -4010,6 +4030,69 @@ class PlayState extends MusicBeatState
 			}
 		}
 
+		// Change window border color on note hit (Windows 11 only) - Using Slushi Engine method
+		#if windows
+		if (ClientPrefs.data.changeWindowBorderColorWithNoteHit && !cpuControlled) {
+			// Get note color from RGB shader or default arrow colors
+			var noteColor:FlxColor = FlxColor.WHITE;
+			var noteData:Int = note.noteData % 4;
+			
+			// Try to get color from RGB shader first
+			if (note.rgbShader != null && note.rgbShader.enabled) {
+				noteColor = note.rgbShader.r;
+			} else {
+				// Fallback to default arrow colors
+				var colorArray:Array<FlxColor> = isPixelStage ? ClientPrefs.data.arrowRGBPixel[noteData] : ClientPrefs.data.arrowRGB[noteData];
+				if (colorArray != null && colorArray.length > 0) {
+					noteColor = colorArray[0]; // Use main color
+				}
+			}
+			
+			// Cancel any existing tween
+			if (windowBorderColorTween != null) {
+				windowBorderColorTween.cancel();
+				windowBorderColorTween = null;
+			}
+			
+			// Convert note color to RGB array
+			var noteRGB:Array<Int> = [noteColor.red, noteColor.green, noteColor.blue];
+			
+			// Tween to note color using Slushi Engine interpolation method
+			windowBorderColorTween = FlxTween.num(0, 1, 0.1, {
+				ease: FlxEase.cubeOut,
+				onComplete: function(twn:FlxTween) {
+					// After reaching note color, tween back to default
+					windowBorderColorTween = FlxTween.num(0, 1, 0.2, {
+						ease: FlxEase.cubeInOut,
+						onComplete: function(twn:FlxTween) {
+							windowBorderColorTween = null;
+						}
+					});
+					
+					windowBorderColorTween.onUpdate = function(twn:FlxTween) {
+						var interpolatedColor:Array<Int> = [];
+						for (i in 0...3) {
+							var newValue:Int = noteRGB[i] + Std.int((defaultBorderColor[i] - noteRGB[i]) * windowBorderColorTween.value);
+							newValue = Std.int(Math.max(0, Math.min(255, newValue)));
+							interpolatedColor.push(newValue);
+						}
+						WindowsAPI.setWindowBorderColor(interpolatedColor[0], interpolatedColor[1], interpolatedColor[2]);
+					};
+				}
+			});
+			
+			windowBorderColorTween.onUpdate = function(twn:FlxTween) {
+				var interpolatedColor:Array<Int> = [];
+				for (i in 0...3) {
+					var newValue:Int = defaultBorderColor[i] + Std.int((noteRGB[i] - defaultBorderColor[i]) * windowBorderColorTween.value);
+					newValue = Std.int(Math.max(0, Math.min(255, newValue)));
+					interpolatedColor.push(newValue);
+				}
+				WindowsAPI.setWindowBorderColor(interpolatedColor[0], interpolatedColor[1], interpolatedColor[2]);
+			};
+		}
+		#end
+
 		if(!cpuControlled) {
 			songScore += score;
 			if(!note.ratingDisabled)
@@ -4262,7 +4345,15 @@ class PlayState extends MusicBeatState
 
 	private function keyPressed(key:Int)
 	{
-		if(cpuControlled || paused || inCutscene || key < 0 || key >= playerStrums.length || !generatedMusic || endingSong || boyfriend.stunned) return;
+		// Opponent Mode: Check the correct character's stunned state
+		var controlledChar:Character = playOpponent ? dad : boyfriend;
+		if(cpuControlled || paused || inCutscene || key < 0 || key >= playerStrums.length || !generatedMusic || endingSong || controlledChar.stunned) return;
+
+		// Play hitsound on key press if enabled (Keys mode)
+		if (ClientPrefs.data.hitsoundType == 'Keys' && ClientPrefs.data.hitsoundVolume > 0 && ClientPrefs.data.hitSounds != "None")
+		{
+			FlxG.sound.play(Paths.sound('hitsounds/' + ClientPrefs.data.hitSounds), ClientPrefs.data.hitsoundVolume).pitch = playbackRate;
+		}
 
 		// Key Viewer
 		if(keyViewer != null) {
@@ -4465,25 +4556,28 @@ class PlayState extends MusicBeatState
 				if(pressArray[i] && strumsBlocked[i] != true)
 					keyPressed(i);
 
-		if (startedCountdown && !inCutscene && !boyfriend.stunned && generatedMusic)
-		{
-			if (notes.length > 0) {
-				for (n in notes) { // I can't do a filter here, that's kinda awesome
-					var canHit:Bool = (n != null && !strumsBlocked[n.noteData] && n.canBeHit
-						&& n.mustPress && !n.tooLate && !n.wasGoodHit && !n.blockHit);
+		// Opponent Mode: Check the correct character's stunned state
+			var controlledChar:Character = playOpponent ? dad : boyfriend;
+			if (startedCountdown && !inCutscene && !controlledChar.stunned && generatedMusic)
+			{
+				if (notes.length > 0) {
+					for (n in notes) { // I can't do a filter here, that's kinda awesome
+						var canHit:Bool = (n != null && !strumsBlocked[n.noteData] && n.canBeHit
+							&& n.mustPress && !n.tooLate && !n.wasGoodHit && !n.blockHit);
 
-					if (guitarHeroSustains)
-						canHit = canHit && n.parent != null && n.parent.wasGoodHit;
+						if (guitarHeroSustains)
+							canHit = canHit && n.parent != null && n.parent.wasGoodHit;
 
-					if (canHit && n.isSustainNote) {
-						var released:Bool = !holdArray[n.noteData];
+						if (canHit && n.isSustainNote) {
+							var released:Bool = !holdArray[n.noteData];
 
-						if (!released)
-							goodNoteHit(n);
+							if (!released)
+								goodNoteHit(n);
+						}
 					}
 				}
-			}
 
+			// Only dance when no keys are held
 			if (!holdArray.contains(true) || endingSong)
 				playerDance();
 
@@ -4635,9 +4729,11 @@ class PlayState extends MusicBeatState
 
 	function opponentNoteHit(note:Note):Void
 	{
+		// Opponent Mode: Update the correct character's holdTimer
+		var opponentChar:Character = playOpponent ? boyfriend : dad;
 		if (!ClientPrefs.data.disableHoldAnimations || !note.isSustainNote) {
-            dad.holdTimer = 0;
-        }
+			opponentChar.holdTimer = 0;
+		}
 		
 		var result:Dynamic = callOnLuas('opponentNoteHitPre', [notes.members.indexOf(note), Math.abs(note.noteData), note.noteType, note.isSustainNote]);
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) result = callOnHScript('opponentNoteHitPre', [note]);
@@ -4647,7 +4743,7 @@ class PlayState extends MusicBeatState
 		if (songName != 'tutorial')
 			camZooming = true;
 
-		// Opponent Mode: Invertir personajes (boyfriend es controlado por IA)
+		// Opponent Mode: Invert characters (boyfriend is controlled by AI)
 		var characterToAnimate:Character = playOpponent ? boyfriend : dad;
 		
 		if(note.noteType == 'Hey!' && characterToAnimate.hasAnimation('hey'))
@@ -4696,9 +4792,11 @@ class PlayState extends MusicBeatState
 	}
 	public function goodNoteHit(note:Note):Void
 	{
+		// Opponent Mode: Update the correct character's holdTimer
+		var playerChar:Character = playOpponent ? dad : boyfriend;
 		if (!ClientPrefs.data.disableHoldAnimations || !note.isSustainNote) {
-            boyfriend.holdTimer = 0;
-        }
+			playerChar.holdTimer = 0;
+		}
 
 		if(note.wasGoodHit) return;
 		if(cpuControlled && note.ignoreNote) return;
@@ -4714,8 +4812,9 @@ class PlayState extends MusicBeatState
 
 		note.wasGoodHit = true;
 
-		if (note.hitsoundVolume > 0 && !note.hitsoundDisabled)
-			FlxG.sound.play(Paths.sound(note.hitsound), note.hitsoundVolume);
+		// Play hitsound if enabled (Notes mode) - only for normal notes, not sustains
+		if (!note.isSustainNote && ClientPrefs.data.hitsoundType == 'Notes' && ClientPrefs.data.hitsoundVolume > 0 && ClientPrefs.data.hitSounds != "None")
+			FlxG.sound.play(Paths.sound('hitsounds/' + ClientPrefs.data.hitSounds), ClientPrefs.data.hitsoundVolume);
 
 		if(!note.hitCausesMiss) //Common notes
 		{
@@ -4929,14 +5028,36 @@ class PlayState extends MusicBeatState
 		#end
 
 		#if HSCRIPT_ALLOWED
+		// Destroy all HScript arrays
 		for (script in hscriptArray)
 			if(script != null)
 			{
 				if(script.exists('onDestroy')) script.call('onDestroy');
 				script.destroy();
 			}
-
 		hscriptArray = null;
+
+		// Destroy SCScript array
+		for (script in scHSArray)
+			if(script != null)
+			{
+				if(script.existsVar('onDestroy')) script.callFunc('onDestroy');
+				script.destroy();
+			}
+		scHSArray = null;
+
+		// Destroy CodeName scripts
+		if(codeNameScripts != null)
+		{
+			for (script in codeNameScripts.scripts)
+				if(script != null && script.active)
+				{
+					script.call('onDestroy');
+					script.destroy();
+				}
+			codeNameScripts.destroy();
+			codeNameScripts = null;
+		}
 		#end
 		stagesFunc(function(stage:BaseStage) stage.destroy());
 
@@ -5128,13 +5249,9 @@ class PlayState extends MusicBeatState
 
 	public function playerDance():Void
 	{
-		// Opponent Mode: El jugador controla a dad, así que dad debe bailar cuando no canta
+		// Opponent Mode: The player controls dad, so dad should dance when not singing
 		var playerChar:Character = playOpponent ? dad : boyfriend;
 		if(playerChar == null) return;
-		
-		// No resetear animación si hay alguna tecla presionada
-		for(keyHeld in keysHeld)
-			if(keyHeld) return;
 		
 		var anim:String = playerChar.getAnimationName();
 		if(playerChar.holdTimer > Conductor.stepCrochet * (0.0011 #if FLX_PITCH / FlxG.sound.music.pitch #end) * playerChar.singDuration && anim.startsWith('sing') && !anim.endsWith('miss'))
@@ -5143,7 +5260,7 @@ class PlayState extends MusicBeatState
 	
 	public function opponentDance():Void
 	{
-		// Opponent Mode: El oponente es boyfriend (IA), en modo normal es dad (IA)
+		// Opponent Mode: The opponent is boyfriend (AI), in normal mode it's dad (AI)
 		var opponentChar:Character = playOpponent ? boyfriend : dad;
 		if(opponentChar == null) return;
 		
@@ -5251,6 +5368,70 @@ class PlayState extends MusicBeatState
 		{
 			if(newScript != null)
 				newScript.destroy();
+		}
+	}
+
+	// SC Script functions
+	public function startSCHSNamed(scriptFile:String)
+	{
+		#if MODS_ALLOWED
+		var scriptToLoad:String = Paths.modFolders(scriptFile);
+		if(!FileSystem.exists(scriptToLoad))
+			scriptToLoad = Paths.getSharedPath(scriptFile);
+		#else
+		var scriptToLoad:String = Paths.getSharedPath(scriptFile);
+		#end
+
+		if(FileSystem.exists(scriptToLoad))
+		{
+			for (script in scHSArray)
+				if(script.hsCode != null && script.hsCode.path == scriptToLoad) return false;
+
+			initSCHS(scriptToLoad);
+			return true;
+		}
+		return false;
+	}
+
+	public function initSCHS(file:String)
+	{
+		var newScript:lenin.slushithings.scripting.SCScript = null;
+		try
+		{
+			var times:Float = Date.now().getTime();
+			newScript = new lenin.slushithings.scripting.SCScript();
+			newScript.loadScript(file);
+			newScript.executeFunc('onCreate');
+			scHSArray.push(newScript);
+			trace('Initialized SCHScript successfully: $file (${Std.int(Date.now().getTime() - times)}ms)');
+		}
+		catch (e:Dynamic)
+		{
+			trace('ERROR ON LOADING SCScript ($file) - $e');
+			if (newScript != null) newScript.destroy();
+		}
+	}
+
+	// CodeName Script functions
+	public function initCodeNameScript(scriptFile:String)
+	{
+		var times:Float = Date.now().getTime();
+		var script = lenin.slushithings.codenameengine.scripting.Script.create(scriptFile);
+		if (!(script is lenin.slushithings.codenameengine.scripting.DummyScript))
+		{
+			if(codeNameScripts == null)
+				codeNameScripts = new lenin.slushithings.codenameengine.scripting.ScriptPack("PlayState Scripts");
+				
+			codeNameScripts.add(script);
+
+			// Set the things first
+			script.set("SONG", SONG);
+
+			// Then CALL SCRIPT
+			script.load();
+			script.call('onCreate');
+			
+			trace('Initialized CodeName script successfully: $scriptFile (${Std.int(Date.now().getTime() - times)}ms)');
 		}
 	}
 	#end
@@ -5802,7 +5983,7 @@ class PlayState extends MusicBeatState
 		luaTouchPad = new TouchPad(DPadMode, ActionMode, NONE);
 		luaTouchPad.alpha = ClientPrefs.data.controlsAlpha;
 	}
-	
+
 	public function addLuaTouchPad() {
 		if(luaTouchPad == null || members.contains(luaTouchPad)) return;
 
