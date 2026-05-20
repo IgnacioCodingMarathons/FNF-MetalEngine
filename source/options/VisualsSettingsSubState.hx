@@ -218,6 +218,24 @@ class VisualsSettingsSubState extends BaseOptionsMenu
 			BOOL);
 		addOption(option);
 
+		var option:Option = new Option('Show Rating Sprite',
+			'If unchecked, hides the rating sprite popup when hitting notes.',
+			'showRating',
+			BOOL);
+		addOption(option);
+
+		var option:Option = new Option('Show Combo Sprite',
+			'If unchecked, hides the COMBO sprite popup when hitting notes.',
+			'showCombo',
+			BOOL);
+		addOption(option);
+
+		var option:Option = new Option('Show Combo Numbers',
+			'If unchecked, hides combo number popups when hitting notes.',
+			'showComboNum',
+			BOOL);
+		addOption(option);
+
 		var option:Option = new Option(
             'Combo and Rating in camGame',
             'If enabled, Combo and Ratings will be rendered in the camGame layer instead of camHUD.',

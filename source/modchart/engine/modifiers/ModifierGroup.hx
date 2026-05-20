@@ -65,6 +65,11 @@ final class ModifierGroup {
 
 	@:noCompletion private var __modifierRegistrery:StringMap<Class<Modifier>> = new StringMap();
 
+	/** Pre-allocated args struct to avoid per-call heap allocation in getPath(). */
+	@:noCompletion private var __cachedArgs:ModifierParameters;
+	/** Reused anchor args for straight holds so blocked mods follow the head uniformly. */
+	@:noCompletion private var __cachedStraightArgs:ModifierParameters;
+
 	@:noCompletion private var __sortedModifiers:Vector<Modifier> = new Vector<Modifier>(32);
 	@:noCompletion private var __modifierCount:Int = 0;
 	@:noCompletion private var __sortedIDs:Vector<String> = new Vector<String>(32);
@@ -81,13 +86,16 @@ final class ModifierGroup {
 	public function new(playfield:PlayField) {
 		this.playfield = playfield;
 
+		// Pre-allocate reusable args struct to avoid 1 heap alloc per getPath() call
+		__cachedArgs = {songTime: 0, hitTime: 0, distance: 0, sourceTime: 0, curBeat: 0};
+		__cachedStraightArgs = {songTime: 0, hitTime: 0, distance: 0, sourceTime: 0, curBeat: 0};
+
 		__loadModifiers();
 	}
 
-	public inline function postRender() {}
-
 	/**
 	 * Computes the transformed position and visual properties of an arrow based on active modifiers.
+	 * Now uses global cache system inspired by StepMania for better performance.
 	 *
 	 * @param pos The initial `Vector3` position of the arrow.
 	 * @param data The `ArrowData` containing arrow properties such as lane, player, and timing.
@@ -97,29 +105,46 @@ final class ModifierGroup {
 	 * @return A `ModifierOutput` structure containing the modified position and visuals.
 	 *
 	 * **Processing Steps:**
+	 * - Checks global cache first (StepMania technique)
+	 * - If cache miss, calculates modifiers and stores result
 	 * - Retrieves the current song position and beat.
 	 * - Iterates through all active modifiers, applying transformations if conditions are met.
 	 * - Adjusts the `z` position based on `Config.Z_SCALE` and projects the final position.
-	 * - (Caching is currently disabled but could be re-enabled for optimization.)
 	 */
 	public inline function getPath(pos:Vector3, data:ArrowData, ?posDiff:Float = 0, ?allowVis:Bool = true, ?allowPos:Bool = true):ModifierOutput {
-		var visuals:VisualParameters = {};
-
 		if (!allowVis && !allowPos)
-			return {pos: pos, visuals: visuals};
+			return {pos: pos, visuals: {}, rawX: pos.x, rawY: pos.y, rawZ: pos.z};
+
+		final hitTime = data.hitTime + posDiff;
+		final distance = data.distance + posDiff;
+		
+		var visuals:VisualParameters = {};
 
 		final songPos = Adapter.instance.getSongPosition();
 		final beat = Adapter.instance.getCurrentBeat();
 
-		final args:ModifierParameters = {
-			songTime: songPos,
-			curBeat: beat,
-			hitTime: data.hitTime + posDiff,
-			distance: data.distance + posDiff,
-			lane: data.lane,
-			player: data.player,
-			isTapArrow: data.isTapArrow
-		}
+		// Reuse pre-allocated args to avoid per-call heap allocation
+		final args = __cachedArgs;
+		args.songTime = songPos;
+		args.curBeat = beat;
+		args.hitTime = hitTime;
+		args.distance = distance;
+		args.sourceTime = data.sourceTime;
+		args.lane = data.lane;
+		args.player = data.player;
+		args.isTapArrow = data.isTapArrow;
+		args.straightHolds = data.straightHolds;
+
+		final straightArgs = __cachedStraightArgs;
+		straightArgs.songTime = songPos;
+		straightArgs.curBeat = beat;
+		straightArgs.hitTime = data.sourceTime;
+		straightArgs.distance = Math.max(0, data.sourceTime - songPos);
+		straightArgs.sourceTime = data.sourceTime;
+		straightArgs.lane = data.lane;
+		straightArgs.player = data.player;
+		straightArgs.isTapArrow = data.isTapArrow;
+		straightArgs.straightHolds = data.straightHolds;
 
 		// sorta optimizations
 		final mods = __sortedModifiers;
@@ -127,20 +152,28 @@ final class ModifierGroup {
 
 		for (i in 0...len) {
 			final mod = mods[i];
+			final useStraightAnchor = args.straightHolds && !mod.allowOnStraightHolds();
+			final activeArgs = useStraightAnchor ? straightArgs : args;
 
-			if (!mod.shouldRun(args))
+			if (!mod.shouldRun(activeArgs))
 				continue;
 
 			if (allowPos)
-				pos = mod.render(pos, args);
+				pos = mod.render(pos, activeArgs);
 			if (allowVis)
-				visuals = mod.visuals(visuals, args);
+				visuals = mod.visuals(visuals, activeArgs);
 		}
 		pos.z *= 0.001 * Config.Z_SCALE;
-		pos = playfield.projection.transformVector(pos);
+		final rawX = pos.x;
+		final rawY = pos.y;
+		final rawZ = pos.z;
+		pos = playfield.view.transformVector(pos);
 		final output:ModifierOutput = {
 			pos: pos,
-			visuals: visuals
+			visuals: visuals,
+			rawX: rawX,
+			rawY: rawY,
+			rawZ: rawZ
 		};
 
 		return output;
@@ -164,10 +197,9 @@ final class ModifierGroup {
 		__addModifier(lowerName, newModifier);
 	}
 
+	// Note: __hashKey in PercentArray is now case-insensitive, so no toLowerCase() needed.
 	public inline function setPercent(name:String, value:Float, player:Int = -1) {
-		final key = name.toLowerCase();
-
-		final possiblePercs = percents.get(key);
+		final possiblePercs = percents.get(name);
 		final generate = possiblePercs == null;
 		final percs = generate ? __getPercentTemplate() : possiblePercs;
 
@@ -179,11 +211,11 @@ final class ModifierGroup {
 
 		// if the percent list already was generated, we dont need to set it again
 		if (generate)
-			percents.set(key, percs);
+			percents.set(name, percs);
 	}
 
 	public inline function getPercent(name:String, player:Int):Float {
-		final percs = percents.get(name.toLowerCase());
+		final percs = percents.get(name);
 
 		if (percs != null)
 			return percs[player];

@@ -71,17 +71,14 @@ class GraphicsSettingsSubState extends BaseOptionsMenu
 		option.onChange = onChangeFramerate;
 		#end
 
-		var option:Option = new Option('FPS Rework',
-			"If checked, this works around the game becoming \"slow\" and \"smooth\" when the current FPS is lower than the FPS cap.",
-			'fpsRework',
-			BOOL);
+		#if windows
+		var option:Option = new Option('Fullscreen Mode',
+			'Choose how fullscreen behaves: borderless, borderless fix or exclusive fullscreen.',
+			'fullscreenMode',
+			STRING,
+			['Borderless', 'Borderless Fix', 'Exclusive']);
 		addOption(option);
-
-		var option:Option = new Option('Enable Preloader',
-		"If checked, preloads common assets (images, sounds, music) on startup to improve performance.\nMay increase initial loading time.",
-		'enablePreloader',
-		BOOL);
-		addOption(option);
+		#end
 
 		super();
 		insert(1, boyfriend);
@@ -100,26 +97,7 @@ class GraphicsSettingsSubState extends BaseOptionsMenu
 
 	function onChangeFramerate()
 	{
-		if(ClientPrefs.data.framerate > FlxG.drawFramerate)
-		{
-			if (ClientPrefs.data.fpsRework)
-				FlxG.stage.window.frameRate = ClientPrefs.data.framerate;
-			else
-			{
-				FlxG.updateFramerate = ClientPrefs.data.framerate;
-				FlxG.drawFramerate = ClientPrefs.data.framerate;
-			}
-		}
-		else
-		{
-			if (ClientPrefs.data.fpsRework)
-				FlxG.stage.window.frameRate = ClientPrefs.data.framerate;
-			else
-			{
-				FlxG.drawFramerate = ClientPrefs.data.framerate;
-				FlxG.updateFramerate = ClientPrefs.data.framerate;
-			}
-		}
+		ClientPrefs.applyFramePacing();
 	}
 
 	override function changeSelection(change:Int = 0)

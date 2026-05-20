@@ -1,6 +1,7 @@
 package modchart.backend.standalone;
 
 import haxe.macro.Compiler;
+import modchart.backend.standalone.adapters.psych.Psych;
 
 class Adapter {
 	public static var instance:IAdapter;
@@ -10,19 +11,22 @@ class Adapter {
 		if (instance != null)
 			return;
 
-		final possibleClientName = ENGINE_NAME.substr(0, 1).toUpperCase() + ENGINE_NAME.substr(1).toLowerCase();
-		final adapter = Type.createInstance(Type.resolveClass('modchart.backend.standalone.adapters.${ENGINE_NAME.toLowerCase()}.' + possibleClientName), []);
-
-		#if FM_VERBOSE
-		trace('[FunkinModchart Verbose] Finding possible adapter from "modchart.backend.standalone.adapters.${ENGINE_NAME.toLowerCase()}.${possibleClientName}"');
-		#end
-
+		trace('[FunkinModchart] Initializing adapter for engine: $ENGINE_NAME');
+		
+		// Direct instantiation instead of reflection
+		var adapter:IAdapter = null;
+		
+		switch (ENGINE_NAME.toLowerCase()) {
+			case "psych":
+				adapter = new Psych();
+			default:
+				throw 'Adapter not found for engine: $ENGINE_NAME';
+		}
+		
 		if (adapter == null)
-			throw 'Adapter not found for $ENGINE_NAME';
+			throw 'Adapter could not be instantiated for $ENGINE_NAME';
 
-		#if FM_VERBOSE
-		trace('[FunkinModchart Verbose] Found Adapter!');
-		#end
+		trace('[FunkinModchart] Adapter initialized successfully');
 
 		instance = adapter;
 	}

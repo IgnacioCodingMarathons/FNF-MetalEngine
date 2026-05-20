@@ -546,6 +546,9 @@ class PlayState extends MusicBeatState
 		noDropPenalty = ClientPrefs.getGameplaySetting('nodroppenalty');
 		cpuControlled = ClientPrefs.getGameplaySetting('botplay');
 		guitarHeroSustains = ClientPrefs.data.guitarHeroSustains;
+		showRating = ClientPrefs.data.showRating;
+		showCombo = ClientPrefs.data.showCombo;
+		showComboNum = ClientPrefs.data.showComboNum;
 
 		if (ClientPrefs.data.shadedTimeBar) {
 			reloadGradientColors();

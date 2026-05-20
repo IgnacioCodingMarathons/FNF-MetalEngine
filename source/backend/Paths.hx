@@ -292,7 +292,11 @@ class Paths
 	{
 		var path:String = getPath(key, TEXT, !ignoreMods);
 		#if sys
-		return (FileSystem.exists(path)) ? File.getContent(path) : null;
+		if (FileSystem.exists(path))
+			return File.getContent(path);
+		if (OpenFlAssets.exists(path, TEXT))
+			return Assets.getText(path);
+		return null;
 		#else
 		return (OpenFlAssets.exists(path, TEXT)) ? Assets.getText(path) : null;
 		#end
@@ -447,6 +451,8 @@ class Paths
 			#if sys
 			if(FileSystem.exists(file))
 				currentTrackedSounds.set(file, Sound.fromFile(file));
+			else if(OpenFlAssets.exists(file, SOUND))
+				currentTrackedSounds.set(file, OpenFlAssets.getSound(file));
 			#else
 			if(OpenFlAssets.exists(file, SOUND))
 				currentTrackedSounds.set(file, OpenFlAssets.getSound(file));

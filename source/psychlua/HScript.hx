@@ -3,6 +3,12 @@ package psychlua;
 import objects.Character;
 import psychlua.LuaUtils;
 import psychlua.CustomSubstate;
+import openfl.utils.Assets as OpenFlAssets;
+
+#if sys
+import sys.io.File;
+import sys.FileSystem;
+#end
 
 #if LUA_ALLOWED
 import psychlua.FunkinLua;
@@ -678,6 +684,31 @@ class HScript extends Iris
 			Iris.error('$e', pos);
 		}
 		return null;
+	}
+
+	public function getScriptedClass(name:String):psychlua.ScriptClassHandler {
+		@:privateAccess
+		var v:Dynamic = interp.customClasses.get(name);
+		if (v != null && (v is psychlua.ScriptClassHandler))
+			return cast v;
+		return null;
+	}
+
+	public function executeFile(path:String):Void
+	{
+		var code:String = null;
+		#if sys
+		if (FileSystem.exists(path))
+			code = File.getContent(path);
+		#end
+		if (code == null && OpenFlAssets.exists(path))
+			code = OpenFlAssets.getText(path);
+		if (code == null) return;
+		@:privateAccess
+		{
+			var expr = parser.parseString(code, path);
+			interp.execute(expr);
+		}
 	}
 
 	override public function destroy()

@@ -25,9 +25,6 @@ import openfl.events.KeyboardEvent;
 #if (linux || mac)
 import lime.graphics.Image;
 #end
-#if COPYSTATE_ALLOWED
-import states.CopyState;
-#end
 import backend.Highscore;
 import lime.system.System as LimeSystem;
 
@@ -197,21 +194,8 @@ class Main extends Sprite
 		});
 		#end
 		
-		// Determine initial state based on preloader preference
-		var initialState:Class<FlxState> = game.initialState;
-		#if COPYSTATE_ALLOWED
-		if (!CopyState.checkExistingFiles()) {
-			initialState = CopyState;
-		} else
-		#end
-		{
-			// Load prefs early to check preloader setting
-			if (ClientPrefs.data.enablePreloader) {
-				initialState = FunkinPreloader;
-			}
-		}
-		
-		addChild(new FlxGame(game.width, game.height, initialState, game.framerate, game.framerate, game.skipSplash, game.startFullscreen));
+		addChild(new FlxGame(game.width, game.height, game.initialState, game.framerate, game.framerate, game.skipSplash, game.startFullscreen));
+		backend.RenderInterpolation.install();
 
 		fpsVar = new FPSCounter(10, 3, 0xFFFFFF);
 		addChild(fpsVar);
@@ -247,7 +231,7 @@ class Main extends Sprite
 		FlxG.mouse.visible = false;
 		#end
 
-		FlxG.fixedTimestep = false;
+		FlxG.fixedTimestep = true;
 		FlxG.game.focusLostFramerate = #if mobile 30 #else 60 #end;
 		#if web
 		FlxG.keys.preventDefaultKeys.push(TAB);
@@ -281,6 +265,9 @@ class Main extends Sprite
 
 		// shader coords fix
 		FlxG.signals.gameResized.add(function (w, h) {
+			ClientPrefs.applyFramePacing();
+			backend.RenderInterpolation.syncAllCameras();
+
 			// Only reposition the FPS counter, no scaling.
 			if(fpsVar != null) {
 				var marginX = 10;
@@ -325,7 +312,7 @@ class Main extends Sprite
 
 	function toggleFullScreen(event:KeyboardEvent) {
 		if (Controls.instance.justReleased('fullscreen'))
-			backend.WindowMode.toggleBorderlessFullscreen();
+			backend.WindowMode.toggleFullscreen();
 	}
 
 	function positionWatermark():Void {

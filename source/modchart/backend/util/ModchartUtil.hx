@@ -8,6 +8,7 @@ import flixel.math.FlxAngle;
 import flixel.math.FlxMath;
 import flixel.math.FlxRect;
 import haxe.ds.Vector;
+import openfl.Vector as OFLVector;
 import modchart.engine.events.Event;
 import modchart.engine.events.types.AddEvent;
 import modchart.engine.events.types.EaseEvent;
@@ -32,15 +33,35 @@ using StringTools;
 	}
 
 	@:pure
-	inline public static function resolveCameras(item:FlxSprite):Array<FlxCamera> {
+	inline public static function resolveCameras(playfield:modchart.engine.PlayField, item:FlxSprite):Array<FlxCamera> {
+		@:privateAccess
+		var playfieldCameras = #if (flixel >= "5.7.0") playfield.getCameras() #else playfield._cameras #end;
+
 		@:privateAccess
 		var cameras = #if (flixel >= "5.7.0") item.getCameras() #else item._cameras #end;
 
 		// fallback to def arrow cameras
-		if (cameras == null || cameras.length == 0)
-			cameras = Adapter.instance.getArrowCamera();
+		if (cameras == null || cameras.length == 0) {
+			if (playfieldCameras == null || playfieldCameras.length == 0)
+				cameras = Adapter.instance.getArrowCamera();
+			else
+				cameras = playfieldCameras;
+		}
 
-		return cameras;
+		if (cameras == null || cameras.length == 0)
+			cameras = FlxG.cameras.list;
+
+		if (cameras == null || cameras.length == 0)
+			return [];
+
+		var filtered:Array<FlxCamera> = [];
+		for (camera in cameras)
+		{
+			if (camera != null)
+				filtered.push(camera);
+		}
+
+		return filtered;
 	}
 
 	inline public static function findEntryFrom(event:Event) {
@@ -134,15 +155,10 @@ using StringTools;
 		}
 	}
 
-	inline static public function getHoldUVT(arrow:FlxSprite, subs:Int, ?vector:DrawData<Float>) {
+	inline static public function getHoldUVT(arrow:FlxSprite, subs:Int):OFLVector<Float> {
 		var frameAngle = -ModchartUtil.getFrameAngle(arrow);
 
-		var uv:DrawData<Float> = null;
-
-		if (vector != null && vector.length >= 8 * subs)
-			uv = vector;
-		else
-			uv = new DrawData<Float>(8 * subs, true, []);
+		var uv = new OFLVector<Float>(12 * subs, true);
 
 		var frameUV = arrow.frame.uv;
 
@@ -162,12 +178,23 @@ using StringTools;
 		if ((frameAngle % 360) == 0) {
 			for (curSub in 0...subs) {
 				var uvOffset = subDivided * curSub;
-				var subIndex = curSub * 8;
+				var subIndex = curSub * 12;
 
-				uv[subIndex] = uv[subIndex + 4] = left;
-				uv[subIndex + 2] = uv[subIndex + 6] = top;
-				uv[subIndex + 1] = uv[subIndex + 3] = right + uvOffset * frameHeight;
-				uv[subIndex + 5] = uv[subIndex + 7] = right + (uvOffset + subDivided) * frameHeight;
+				uv[subIndex] = left; // U
+				uv[subIndex + 1] = right + uvOffset * frameHeight; // V
+				uv[subIndex + 2] = 1; // T
+
+				uv[subIndex + 3] = top;
+				uv[subIndex + 4] = right + uvOffset * frameHeight;
+				uv[subIndex + 5] = 1;
+
+				uv[subIndex + 6] = left;
+				uv[subIndex + 7] = right + (uvOffset + subDivided) * frameHeight;
+				uv[subIndex + 8] = 1;
+
+				uv[subIndex + 9] = top;
+				uv[subIndex + 10] = right + (uvOffset + subDivided) * frameHeight;
+				uv[subIndex + 11] = 1;
 			}
 			return uv;
 		}
@@ -201,8 +228,11 @@ using StringTools;
 				var uRot = u * cosA - v * sinA;
 				var vRot = u * sinA + v * cosA;
 
-				uv[subIndex + i * 2] = uRot + uCenter;
-				uv[subIndex + i * 2 + 1] = vRot + vCenter;
+				var base = subIndex + i * 3;
+
+				uv[base] = uRot + uCenter; // U
+				uv[base + 1] = vRot + vCenter; // V
+				uv[base + 2] = 1; // T
 			}
 		}
 

@@ -15,6 +15,7 @@ import states.TitleState;
 	public var controlsAlpha:Float = FlxG.onMobile ? 0.6 : 0;
 	public var screensaver:Bool = false;
 	public var wideScreen:Bool = false;
+	public var fullscreenMode:String = 'Borderless'; // 'Borderless', 'Borderless Fix', 'Exclusive'
 	public var hitboxType:String = "Gradient";
 	public var popUpRating:Bool = true;
 	public var vsync:Bool = false;
@@ -100,7 +101,10 @@ import states.TitleState;
 	public var showIntroVideo:Bool = true;
 	public var checkForUpdates:Bool = true;
 	public var comboStacking:Bool = true;
-	public var enablePreloader:Bool = false; // Enable global asset preloader on startup
+	public var showCombo:Bool = true;
+	public var showComboNum:Bool = true;
+	public var showRating:Bool = true;
+	public var enablePreloader:Bool = false; // Legacy option, currently unused
 	public var gameplaySettings:Map<String, Dynamic> = [
 		'scrollspeed' => 1.0,
 		'scrolltype' => 'multiplicative', 
@@ -289,21 +293,7 @@ class ClientPrefs {
             judgementCounter = !!Reflect.field(FlxG.save.data, "judgementCounter");
 		    judgementCounter = data.judgementCounter;
 
-		if (data.fpsRework)
-			FlxG.stage.window.frameRate = data.framerate;
-		else
-		{
-			if (data.framerate > FlxG.drawFramerate)
-			{
-				FlxG.updateFramerate = data.framerate;
-				FlxG.drawFramerate = data.framerate;
-			}
-			else
-			{
-				FlxG.drawFramerate = data.framerate;
-				FlxG.updateFramerate = data.framerate;
-			}
-		}
+		applyFramePacing();
 
 		if (FlxG.save.data.showIntroVideo != null) {
             data.showIntroVideo = FlxG.save.data.showIntroVideo;
@@ -354,6 +344,48 @@ class ClientPrefs {
 	{
 		if(!customDefaultValue) defaultValue = defaultData.gameplaySettings.get(name);
 		return /*PlayState.isStoryMode ? defaultValue : */ (data.gameplaySettings.exists(name) ? data.gameplaySettings.get(name) : defaultValue);
+	}
+
+	public static function applyFramePacing():Void
+	{
+		var safeFramerate:Int = Std.int(Math.max(30, data.framerate));
+		var drawFramerate:Int = getInterpolatedDrawFramerate(safeFramerate);
+
+		FlxG.fixedTimestep = true;
+		FlxG.updateFramerate = safeFramerate;
+		FlxG.drawFramerate = drawFramerate;
+		FlxG.maxElapsed = 1 / safeFramerate;
+
+		#if (!html5 && !switch)
+		try
+		{
+			if (FlxG.stage != null)
+			{
+				FlxG.stage.frameRate = drawFramerate;
+				if (FlxG.stage.window != null)
+					FlxG.stage.window.frameRate = drawFramerate;
+			}
+		}
+		catch (e:Dynamic) {}
+		#end
+	}
+
+	static function getInterpolatedDrawFramerate(safeFramerate:Int):Int
+	{
+		#if (!html5 && !switch)
+		try
+		{
+			if (FlxG.stage != null && FlxG.stage.application != null && FlxG.stage.application.window != null)
+			{
+				var refreshRate:Int = FlxG.stage.application.window.displayMode.refreshRate;
+				if (refreshRate > 0)
+					return Std.int(FlxMath.bound(refreshRate, 30, 240));
+			}
+		}
+		catch (e:Dynamic) {}
+		#end
+
+		return safeFramerate;
 	}
 
 	public static function reloadVolumeKeys()

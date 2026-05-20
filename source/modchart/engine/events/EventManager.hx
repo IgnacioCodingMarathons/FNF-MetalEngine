@@ -4,7 +4,7 @@ import haxe.ds.StringMap;
 import haxe.ds.Vector;
 import modchart.backend.util.ModchartUtil;
 import modchart.engine.PlayField;
-import modchart.events.types.*;
+import modchart.engine.events.types.*;
 
 #if !openfl_debug
 @:fileXml('tags="haxe,release"')
@@ -63,6 +63,14 @@ class EventManager {
 
 	public function getLastEventBefore(event:Event):Event {
 		return event.prev;
+	}
+
+	public inline function setModPercent(name:String, value:Float, player:Int):Void {
+		pf.setPercent(name, value, player);
+	}
+
+	public inline function getModPercent(name:String, player:Int):Float {
+		return pf.getPercent(name, player);
 	}
 
 	private function insertSorted(vec:Vector<Event>, event:Event, resize:Bool = false) {
