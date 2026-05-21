@@ -40,11 +40,11 @@ class OptionsState extends MusicBeatState
 			case 'Gameplay':
 				openSubState(new options.GameplaySettingsSubState());
 			case 'Modchart':
-				openSubState(new options.ModchartOptionsSubState());
+				openSubState(new options.ModchartSettingsSubState());
 			case 'Adjust Delay and Combo':
 				MusicBeatState.switchState(new options.NoteOffsetState());
 			case 'Mobile Options':
-				openSubState(new mobile.options.MobileOptionsSubState());
+				openSubState(new mobile.options.MobileSettingsSubState());
 			case 'Language':
 				openSubState(new options.LanguageSubState());
 		}

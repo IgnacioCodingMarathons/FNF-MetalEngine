@@ -27,7 +27,6 @@ import psychlua.LuaUtils.LuaTweenOptions;
 
 #if HSCRIPT_ALLOWED
 import psychlua.HScript;
-import psychlua.SScript;
 #end
 
 import psychlua.ModchartSprite;
@@ -46,9 +45,6 @@ class FunkinLua {
 
 	#if HSCRIPT_ALLOWED
 	public var hscript:HScript = null;
-	#end
-	#if SSCRIPT_ALLOWED
-	public var sscript:SScriptCompat = null; // Para compatibilidad con mods antiguos
 	#end
 
 	public var callbacks:Map<String, Dynamic> = new Map<String, Dynamic>();
@@ -1609,14 +1605,12 @@ class FunkinLua {
 		#if ACHIEVEMENTS_ALLOWED Achievements.addLuaCallbacks(lua); #end
 		#if TRANSLATIONS_ALLOWED Language.addLuaCallbacks(lua); #end
 		HScript.implement(this);
-		#if SSCRIPT_ALLOWED SScriptCompat.implement(this); #end // Compatibilidad con mods antiguos 0.6.x - 0.7.3
 		#if flxanimate FlxAnimateFunctions.implement(this); #end
 		ReflectionFunctions.implement(this);
 		TextFunctions.implement(this);
 		ExtraFunctions.implement(this);
 		CustomSubstate.implement(this);
 		ShaderFunctions.implement(this);
-		Cam3DFunctions.implement(this);
 		DeprecatedFunctions.implement(this);
 		#if MODCHARTS_NOTITG_ALLOWED LuaModchart.implement(this); #end
 		#if WINDOWS_FUNCTIONS_ALLOWED WindowsFunctions.implement(this); #end
@@ -1728,13 +1722,6 @@ class FunkinLua {
 		{
 			hscript.destroy();
 			hscript = null;
-		}
-		#end
-		#if SSCRIPT_ALLOWED
-		if(sscript != null)
-		{
-			sscript.destroy();
-			sscript = null;
 		}
 		#end
 	}

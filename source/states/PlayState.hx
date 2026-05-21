@@ -155,6 +155,8 @@ class PlayState extends MusicBeatState
 
 	#if LUA_ALLOWED
 	public var modchartTweens:Map<String, FlxTween> = new Map<String, FlxTween>();
+	public var modchartSprites:Map<String, FlxSprite> = new Map<String, FlxSprite>();
+	public var modchartTexts:Map<String, FlxText> = new Map<String, FlxText>();
 	#end
 
 	public var BF_X:Float = 770;
@@ -489,9 +491,6 @@ class PlayState extends MusicBeatState
 		// Resetear contador de errores de scripts
 		#if LUA_ALLOWED
 		FunkinLua.lua_Errors = 0;
-		#if SSCRIPT_ALLOWED
-		psychlua.SScript.SScriptCompat.sscript_Errors = 0;
-		#end
 		#end
 		
 		//trace('Playback Rate: ' + playbackRate);
@@ -2515,9 +2514,6 @@ class PlayState extends MusicBeatState
 			psychlua.LuaVideo.resumeAll();
 			#end
 			
-			// Reanudar todos los VideoHandlers
-			objects.wrappers.VideoHandler.resumeAll();
-			
 			callOnScripts('onResume');
 			resetRPC(startTimer != null && startTimer.finished);
 			runSongSyncThread();
@@ -3065,9 +3061,6 @@ class PlayState extends MusicBeatState
 		#if LUA_ALLOWED
 		psychlua.LuaVideo.pauseAll();
 		#end
-		
-		// Pausar todos los VideoHandlers
-		objects.wrappers.VideoHandler.pauseAll();
 		
 		if(!cpuControlled)
 		{
@@ -4734,9 +4727,6 @@ class PlayState extends MusicBeatState
 	{
 		// Opponent Mode: Update the correct character's holdTimer
 		var opponentChar:Character = playOpponent ? boyfriend : dad;
-		if (!ClientPrefs.data.disableHoldAnimations || !note.isSustainNote) {
-			opponentChar.holdTimer = 0;
-		}
 		
 		var result:Dynamic = callOnLuas('opponentNoteHitPre', [notes.members.indexOf(note), Math.abs(note.noteData), note.noteType, note.isSustainNote]);
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) result = callOnHScript('opponentNoteHitPre', [note]);
@@ -4797,9 +4787,6 @@ class PlayState extends MusicBeatState
 	{
 		// Opponent Mode: Update the correct character's holdTimer
 		var playerChar:Character = playOpponent ? dad : boyfriend;
-		if (!ClientPrefs.data.disableHoldAnimations || !note.isSustainNote) {
-			playerChar.holdTimer = 0;
-		}
 
 		if(note.wasGoodHit) return;
 		if(cpuControlled && note.ignoreNote) return;

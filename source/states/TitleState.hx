@@ -122,74 +122,7 @@ class TitleState extends MusicBeatState
 		}
 
 		FlxG.mouse.visible = false;
-
-		var shouldShowIntro:Bool = (!initialized || forceShowIntro) && ClientPrefs.data.showIntroVideo && !FlxG.save.data.introFinished;
 		
-		if(shouldShowIntro)
-		{
-			showIntroVideo();
-		}
-		else
-		{
-			#if FREEPLAY
-			MusicBeatState.switchState(new FreeplayState());
-			#elseif CHARTING
-			MusicBeatState.switchState(new ChartingState());
-			#else
-			if(FlxG.save.data.flashing == null && !FlashingState.leftState)
-			{
-				controls.isInSubstate = false; //idfk what's wrong
-				FlxTransitionableState.skipNextTransIn = true;
-				FlxTransitionableState.skipNextTransOut = true;
-				MusicBeatState.switchState(new FlashingState());
-			}
-			else
-				startIntro();
-			#end
-		}
-	}
-
-	function showIntroVideo():Void
-	{
-		showingIntro = true;
-
-		var blackBG = new FlxSprite().makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
-		add(blackBG);
-
-		introVideo = new FlxVideoSprite();
-		introVideo.bitmap.onEndReached.add(function() {
-			onIntroFinished();
-		});
-
-		var videoPath:String = Paths.video('titleIntro');
-		if(videoPath != null)
-		{
-			introVideo.load(videoPath);
-			introVideo.play();
-			add(introVideo);
-		}
-		else
-		{
-			trace('Intro video not found, skipping to normal intro');
-			onIntroFinished();
-		}
-	}
-	
-	function onIntroFinished():Void
-	{
-		if (!showingIntro) return;
-		
-		showingIntro = false;
-		introFinished = true;
-		FlxG.save.data.introFinished = true;
-		FlxG.save.flush();
-
-		if (introVideo != null)
-		{
-			introVideo.destroy();
-			introVideo = null;
-		}
-
 		#if FREEPLAY
 		MusicBeatState.switchState(new FreeplayState());
 		#elseif CHARTING
@@ -197,28 +130,16 @@ class TitleState extends MusicBeatState
 		#else
 		if(FlxG.save.data.flashing == null && !FlashingState.leftState)
 		{
-			controls.isInSubstate = false;
+			controls.isInSubstate = false; //idfk what's wrong
 			FlxTransitionableState.skipNextTransIn = true;
 			FlxTransitionableState.skipNextTransOut = true;
 			MusicBeatState.switchState(new FlashingState());
 		}
 		else
-			startIntro();
-		#end
-	}
-	
-	function skipIntroVideo():Void
-	{
-		if (!showingIntro || !canSkip) return;
-
-		FlxG.sound.play(Paths.sound('cancelMenu'), 0.7);
-
-		if (introVideo != null)
 		{
-			introVideo.stop();
+			startIntro();
 		}
-		
-		onIntroFinished();
+		#end
 	}
 
 	var logoBl:FlxSprite;
@@ -473,12 +394,6 @@ class TitleState extends MusicBeatState
 				pressedSkip = true;
 			}
 			#end
-			
-			if (pressedSkip)
-			{
-				skipIntroVideo();
-				return;
-			}
 		}
 
 		if (!showingIntro)

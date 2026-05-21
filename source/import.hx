@@ -57,12 +57,14 @@ import backend.BaseStage;
 import backend.Difficulty;
 import backend.Mods;
 import backend.Language;
+import backend.StructurePsychOld;
 import mobile.backend.StorageUtil;
 
 import backend.ui.*; //Psych-UI
 
 import objects.Alphabet;
 import objects.BGSprite;
+import objects.Cursor;
 
 import states.PlayState;
 import states.LoadingState;

@@ -3,6 +3,7 @@ package backend;
 import flixel.util.FlxSave;
 import flixel.input.keyboard.FlxKey;
 import flixel.input.gamepad.FlxGamepadInputID;
+//import funkin.cloud.GoogleCloudSyncNotifier;
 
 import states.TitleState;
 
@@ -13,20 +14,30 @@ import states.TitleState;
 	public var hitboxPos:Bool = true; // hitbox extra button position option
 	public var dynamicColors:Bool = true; // yes cause its cool -Karim
 	public var controlsAlpha:Float = FlxG.onMobile ? 0.6 : 0;
+	public var showTouchPointer:Bool = true; // show touch pointer indicator (like Android dev option)
+	public var showMobileDebugButtons:Bool = false; // show T and D debug buttons on mobile
 	public var screensaver:Bool = false;
-	public var wideScreen:Bool = false;
-	public var fullscreenMode:String = 'Borderless'; // 'Borderless', 'Borderless Fix', 'Exclusive'
+	public var infinityDisplay:Bool = false; // Extend viewport vertically for modern screens while keeping game at 16:9
+	#if android
+	public var storageType:String = "EXTERNAL_DATA";
+	public var androidOptimizationsApplied:Bool = false; // One-time optimization flag
+	public var androidOptimizationProfileVersion:Int = 0;
+	#end
 	public var hitboxType:String = "Gradient";
 	public var popUpRating:Bool = true;
-	public var vsync:Bool = false;
+	public var versionTextOnGameplay:Bool = false;
 	public var gameOverVibration:Bool = false;
-	public var fpsRework:Bool = false;
+	public var fpsRework:Bool = true;
+	public var mobileReceptorAlign:Bool = false; // Align receptors with hitbox lanes (mobile only, may break scripts)
+	#if windows
+	public var fullscreenMode:String = 'Borderless'; // 'Borderless', 'Borderless Fix', 'Exclusive'
+	#end
 	
-	// Sistema de Accuracy/Rating
+	// Accuracy/Rating system
 	public var accuracySystem:String = 'Wife3'; // 'Wife3', 'Psych', 'Simple', 'osu!mania', 'DJMAX', 'ITG'
 	
 	// Combo Break Settings
-	public var badShitBreakCombo:Bool = false; // Si está en true, Bad y Shit romperán el combo
+	public var badShitBreakCombo:Bool = false; // When true, Bad and Shit will break the combo
 
 	public var systemScoreMultiplier:String = 'Psych'; // 'Psych', 'Codename'
 	
@@ -34,15 +45,22 @@ import states.TitleState;
 	public var middleScroll:Bool = false;
 	public var opponentStrums:Bool = true;
 	public var showFPS:Bool = true;
-	public var fpsDebugLevel:Int = 0; // Nivel de debug del FPSCounter (persistente)
+	public var vsync:Bool = false;
+	public var fpsDebugLevel:Int = 0; // FPSCounter debug level (persistent)
 	public var showWatermark:Bool = false;
 	public var flashing:Bool = true;
 	public var autoPause:Bool = true;
 	public var antialiasing:Bool = true;
+	#if windows
 	public var changeWindowBorderColorWithNoteHit:Bool = false; // Changes window border color on note hit (Windows 11 only)
+	#end
 	public var noteSkin:String = 'Default';
+	public var noteRGB:Bool = true;
 	public var splashSkin:String = 'Psych';
 	public var splashAlpha:Float = 0.6;
+	public var colorQuantization:Bool = false; // StepMania-style color quantization
+	public var menuAccentColor:String = 'Purple';
+	public var menuDarkTheme:Bool = false;
 	public var lowQuality:Bool = false;
 	public var shaders:Bool = true;
 	public var colorblindMode:String = 'None';
@@ -52,28 +70,37 @@ import states.TitleState;
 	public var hideHud:Bool = false;
 	public var hideSustainSplash:Bool = false;
 	public var showKeyViewer:Bool = false;
-	public var judgementCounter:Bool = true;
+	public var iconBounceType:String = 'Default';
+	public var judgementCounter:Bool = false;
+	public var showCombo:Bool = true;
 	public var comboInGame:Bool = false;
 	public var useFreakyFont:Bool = false;
 	public var showStateInFPS:Bool = true;
-	public var showEndCountdown:Bool = false; // Activa/desactiva la cuenta regresiva
-    public var endCountdownSeconds:Int = 10;  // Segundos de cuenta regresiva (10-30)
-	public var holdSubdivisions:Int = 4; // Subdivisiones para las notas hold (1-32)
-	// Modchart Config Options
-	public var camera3dEnabled:Bool = true; // Habilita/deshabilita cámaras 3D
-	public var optimizeHolds:Bool = false; // Optimiza el renderizado de holds (puede verse mal con modcharts complejos)
-	public var zScale:Float = 1.0; // Escala del eje Z (profundidad)
-	public var renderArrowPaths:Bool = false; // Renderiza las líneas de trayectoria de las flechas
-	public var styledArrowPaths:Bool = false; // Aplica estilos visuales a las trayectorias
-	public var arrowPathFrameSkip:Int = 2; // Frameskip para paths (1=60fps, 2=30fps, 3=20fps, etc.)
-	public var arrowPathBoundary:Int = 300; // Margen de boundary checking para paths (pixeles fuera de pantalla)
-	public var holdCacheEnabled:Bool = true; // Cache de hold graphics para mejor performance
-	public var holdAlphaDivisions:Int = 20; // Variantes de alpha pre-calculadas (10-30)
-	public var seamlessHoldExtension:Float = 2.0; // Extensión de holds para evitar gaps (0-5)
-	public var holdEndScale:Float = 1.0; // Escala del final de los holds
-	public var preventScaledHoldEnd:Bool = false; // Previene el escalado de los hold ends
-	public var columnSpecificModifiers:Bool = true; // Habilita/deshabilita modificadores específicos por columna
-	public var holdsBehindStrum:Bool = false; // Muestra los sustains detrás de las strums
+	public var showEndCountdown:Bool = false; // Enables/disables the end countdown
+	public var endCountdownSeconds:Int = 10;  // End countdown seconds (10-30)
+	
+	// ========== Modchart Config Options ==========
+	// Camera & 3D Settings
+	public var camera3dEnabled:Bool = true; // Enables 3D camera transformations
+	public var zScale:Float = 1.0; // Z-axis depth scale (0.1-5.0)
+	
+	// Arrow Path Settings
+	public var renderArrowPaths:Bool = false; // Renders arrow trajectory lines (performance intensive)
+	public var styledArrowPaths:Bool = false; // Applies colors/transparency to arrow paths
+	public var arrowPathBoundary:Int = 300; // Pixels beyond screen to render paths (0-1000)
+	
+	// Hold Note Settings
+	public var optimizeHolds:Bool = false; // Optimizes hold rendering (not recommended for complex modcharts)
+	public var holdsBehindStrum:Bool = false; // Renders sustains behind strum line
+	public var holdEndScale:Float = 1.0; // Scale multiplier for hold note endings (0.1-3.0)
+	
+	// Hold Cache Settings (Auto-managed by AndroidOptimizer)
+	public var holdCacheEnabled:Bool = true; // Hold graphics cache for performance
+	public var holdAlphaDivisions:Int = 20; // Pre-calculated alpha variants (10-30)
+	
+	// Modifier Settings
+	public var columnSpecificModifiers:Bool = true; // Enables per-lane modifier calculations
+	
 	public var noteOffset:Int = 0;
 	public var arrowRGB:Array<Array<FlxColor>> = [
 		[0xFFC24B99, 0xFFFFFFFF, 0xFF3C1F56],
@@ -85,26 +112,31 @@ import states.TitleState;
 		[0xFF3DCAFF, 0xFFF4FFFF, 0xFF003060],
 		[0xFF71E300, 0xFFF6FFE6, 0xFF003100],
 		[0xFFFF884E, 0xFFFFFAF5, 0xFF6C0000]];
+	public var arrowHSV:Array<Array<Float>> = [
+		[0, 0, 0],
+		[0, 0, 0],
+		[0, 0, 0],
+		[0, 0, 0]
+	];
 
 	public var ghostTapping:Bool = true;
 	public var timeBarType:String = 'Time Left';
+	public var useWavyTimeBar:Bool = false;
 	public var shadedTimeBar:Bool = false;
 	public var scoreZoom:Bool = true;
+	public var timeBump:Bool = false;
 	public var noReset:Bool = false;
-	public var disableHoldAnimations:Bool = false;
 	public var healthBarAlpha:Float = 1;
 	public var smoothHealthBar:Bool = true;
+	public var smoothHPBug:Bool = false;
+	public var usePsychScoreText:Bool = true;
 	public var hitsoundVolume:Float = 0;
 	public var hitSounds:String = "None";
 	public var hitsoundType:String = "None";
 	public var pauseMusic:String = 'Tea Time';
-	public var showIntroVideo:Bool = true;
 	public var checkForUpdates:Bool = true;
 	public var comboStacking:Bool = true;
-	public var showCombo:Bool = true;
-	public var showComboNum:Bool = true;
-	public var showRating:Bool = true;
-	public var enablePreloader:Bool = false; // Legacy option, currently unused
+	public var enablePreloader:Bool = false; // Enable global asset preloader on startup
 	public var gameplaySettings:Map<String, Dynamic> = [
 		'scrollspeed' => 1.0,
 		'scrolltype' => 'multiplicative', 
@@ -124,6 +156,7 @@ import states.TitleState;
 		'instakill' => false,
 		'practice' => false,
 		'botplay' => false,
+		'opponentdrain' => false, // JS Engine-style: opponent note hits drain player health
 		'opponentplay' => false,
 		'perfect' => false, // Perfect Mode - insta-kill on any judgement below Sick
 		'nodroppenalty' => false // Hold drops don't cause misses
@@ -133,26 +166,59 @@ import states.TitleState;
 	public var keyViewerOffset:Array<Int> = [0, 0]; // X, Y offset for key viewer
 	public var keyViewerColor:String = 'Gray'; // Color name for key viewer
 	public var ratingOffset:Int = 0;
-	public var judgeDiff:String = 'J4'; // Judge Difficulty: J1 (easiest) to JUSTICE (hardest)
+	public var flawlessRating:Bool = true;
 	public var flawlessWindow:Float = 20.0;
 	public var sickWindow:Float = 45.0;
 	public var goodWindow:Float = 90.0;
 	public var badWindow:Float = 135.0;
 	public var safeFrames:Float = 10.0;
-	public var guitarHeroSustains:Bool = true;
+	public var guitarHeroSustains:Bool = false;
 	public var discordRPC:Bool = true;
 	public var loadingScreen:Bool = true;
 	public var language:String = 'en-US';
 	public var abbreviateScore:Bool = true;
-	public var heavyCharts:Bool = false; // Heavy Charts Mode para charts pesados
+	public var newfreeplay:Bool = true;
 	public var vanillaTransition:Bool = false; // Use vanilla Psych Engine transition instead of custom
+	public var cloudProvider:String = 'Google';
+	public var cloudSessionStatus:String = 'Not signed in';
+	public var firebaseDesktopLoginUrl:String = 'https://fnf-plus-engine.web.app/auth';
+	public var firebaseApiKey:String = 'AIzaSyBBuMPZbBMLTic9RFKTR-I0b-wmbdPgR-I';
+	public var firebaseProjectId:String = 'fnf-plus-engine';
+	public var firebaseRealtimeDbUrl:String = 'https://fnf-plus-engine-default-rtdb.firebaseio.com';
+	public var googleCloudUid:String = '';
+	public var googleCloudEmail:String = '';
+	public var googleFirebaseIdToken:String = '';
+	public var googleFirebaseRefreshToken:String = '';
+	public var cloudLastLocalSaveAt:String = '';
+	public var cloudLastCloudPushAt:String = '';
+	public var cloudLastCloudPullAt:String = '';
+	public var cloudLastSeenRemoteSnapshotAt:String = '';
+	public var cloudLastSeenRemoteSnapshotHash:String = '';
+	public var cloudDebugTraces:Bool = true;
+	public var gameJoltUsername:String = '';
+	public var gameJoltToken:String = '';
+	public var gameJoltGameId:String = '';
+	public var gameJoltPrivateKey:String = '';
+	
+	// New Gameplay Features (Issue #72)
+	public var pauseCountdown:Bool = false; // Enable countdown when resuming from pause
+	public var heyIntro:Bool = false; // Boyfriend and Girlfriend do Hey! animation on countdown Go!
+	public var breakTimer:Bool = false; // Show timer when next notes are approaching
+	public var disableLargeChartGC:Bool = false; // Skip manual GC pass for large charts to reduce loading stutters
+	
+	// Compatibility Settings
+	public var useSScriptCompat:Bool = false; // Use SScript instead of hscript-iris for Psych 0.7.3 mods compatibility
+	public var legacyMemoryManagement:Bool = false; // Use Psych 0.7.3 memory management style (no GPU disposal)
+	public var legacyFileSystemAccess:Bool = false; // Allow direct FileSystem.readDirectory access like in Psych 0.7.3
+	public var legacyShaderInit:Bool = false; // Use Psych 0.7.3 shader initialization (glslVersion parameter, direct FlxRuntimeShader)
+	public var autoConvertChartsToV2:Bool = false; // Automatically convert psych_v1 charts to psych_v2 format when loading
+	public var useScriptableCustomStates:Bool = false; // Allow scripted state overrides through ScriptableState and CustomState
 }
 
 class ClientPrefs {
 	public static var data:SaveVariables = {};
 	public static var defaultData:SaveVariables = {};
-	public static var judgementCounter:Bool = true;
-	
+	public static var judgementCounter:Bool = false;
 
 	//Every key has two binds, add your key bind down here and then add your control on options/ControlsSubState.hx and Controls.hx
 	public static var keyBinds:Map<String, Array<FlxKey>> = [
@@ -178,6 +244,7 @@ class ClientPrefs {
 		
 		'debug_1'		=> [SEVEN],
 		'debug_2'		=> [EIGHT],
+		'debug_3'		=> [SIX],
 		
 		'fullscreen'	=> [F11]
 	];
@@ -216,6 +283,17 @@ class ClientPrefs {
 	public static var defaultKeys:Map<String, Array<FlxKey>> = null;
 	public static var defaultButtons:Map<String, Array<FlxGamepadInputID>> = null;
 	public static var defaultMobileBinds:Map<String, Array<MobileInputID>> = null;
+	static var controlsSaveCache:FlxSave = null;
+
+	static function getControlsSave():FlxSave
+	{
+		if (controlsSaveCache == null)
+		{
+			controlsSaveCache = new FlxSave();
+			controlsSaveCache.bind('controls_v3', CoolUtil.getSavePath());
+		}
+		return controlsSaveCache;
+	}
 
 	public static function resetKeys(controller:Null<Bool> = null) //Null = both, False = Keyboard, True = Controller
 	{
@@ -247,7 +325,23 @@ class ClientPrefs {
 		defaultMobileBinds = mobileBinds.copy();
 	}
 
+	#if android
+	public static function loadStorageTypeEarly():Void
+	{
+		var save:FlxSave = new FlxSave();
+		save.bind('funkin', CoolUtil.getSavePath());
+		if (save != null && save.data != null && Reflect.hasField(save.data, 'storageType'))
+		{
+			var storedType = Reflect.field(save.data, 'storageType');
+			if (storedType != null)
+				data.storageType = storedType;
+		}
+	}
+	#end
+
 	public static function saveSettings() {
+		data.cloudLastLocalSaveAt = Date.now().toString();
+
 		for (key in Reflect.fields(data))
 			Reflect.setField(FlxG.save.data, key, Reflect.field(data, key));
 
@@ -258,15 +352,13 @@ class ClientPrefs {
         Reflect.setField(FlxG.save.data, "judgementCounter", judgementCounter);
 		data.judgementCounter = judgementCounter;
 
-		FlxG.save.data.showIntroVideo = data.showIntroVideo;
-
 		//Placing this in a separate save so that it can be manually deleted without removing your Score and stuff
-		var save:FlxSave = new FlxSave();
-		save.bind('controls_v3', CoolUtil.getSavePath());
+		var save = getControlsSave();
 		save.data.keyboard = keyBinds;
 		save.data.gamepad = gamepadBinds;
 		save.data.mobile = mobileBinds;
 		save.flush();
+		//GoogleCloudSyncNotifier.notifySaveEvent();
 		FlxG.log.add("Settings saved!");
 	}
 
@@ -276,6 +368,9 @@ class ClientPrefs {
 		for (key in Reflect.fields(data))
 			if (key != 'gameplaySettings' && Reflect.hasField(FlxG.save.data, key))
 				Reflect.setField(data, key, Reflect.field(FlxG.save.data, key));
+
+		// Fixed timestep is now always enabled to keep simulation and interpolation consistent.
+		data.fpsRework = true;
 		
 		if(Main.fpsVar != null)
 			Main.fpsVar.visible = data.showFPS;
@@ -295,9 +390,17 @@ class ClientPrefs {
 
 		applyFramePacing();
 
-		if (FlxG.save.data.showIntroVideo != null) {
-            data.showIntroVideo = FlxG.save.data.showIntroVideo;
-        }
+		#if (!html5 && !switch)
+		try
+		{
+			if (FlxG.stage != null && FlxG.stage.application != null && FlxG.stage.application.window != null)
+				Reflect.setProperty(FlxG.stage.application.window, 'vsync', data.vsync);
+		}
+		catch (e:Dynamic)
+		{
+			// Some targets may not expose window vsync.
+		}
+		#end
 
 		if(FlxG.save.data.gameplaySettings != null)
 		{
@@ -340,14 +443,10 @@ class ClientPrefs {
 		}
 	}
 
-	inline public static function getGameplaySetting(name:String, defaultValue:Dynamic = null, ?customDefaultValue:Bool = false):Dynamic
-	{
-		if(!customDefaultValue) defaultValue = defaultData.gameplaySettings.get(name);
-		return /*PlayState.isStoryMode ? defaultValue : */ (data.gameplaySettings.exists(name) ? data.gameplaySettings.get(name) : defaultValue);
-	}
-
 	public static function applyFramePacing():Void
 	{
+		// Keep fixed timestep + interpolation always on for stable gameplay timing.
+		data.fpsRework = true;
 		var safeFramerate:Int = Std.int(Math.max(30, data.framerate));
 		var drawFramerate:Int = getInterpolatedDrawFramerate(safeFramerate);
 
@@ -366,7 +465,10 @@ class ClientPrefs {
 					FlxG.stage.window.frameRate = drawFramerate;
 			}
 		}
-		catch (e:Dynamic) {}
+		catch (e:Dynamic)
+		{
+			// Ignore targets that do not expose window frame rate at runtime.
+		}
 		#end
 	}
 
@@ -382,10 +484,19 @@ class ClientPrefs {
 					return Std.int(FlxMath.bound(refreshRate, 30, 240));
 			}
 		}
-		catch (e:Dynamic) {}
+		catch (e:Dynamic)
+		{
+			// Fallback to the gameplay framerate when refresh rate is unavailable.
+		}
 		#end
 
 		return safeFramerate;
+	}
+
+	inline public static function getGameplaySetting(name:String, defaultValue:Dynamic = null, ?customDefaultValue:Bool = false):Dynamic
+	{
+		if(!customDefaultValue) defaultValue = defaultData.gameplaySettings.get(name);
+		return /*PlayState.isStoryMode ? defaultValue : */ (data.gameplaySettings.exists(name) ? data.gameplaySettings.get(name) : defaultValue);
 	}
 
 	public static function reloadVolumeKeys()

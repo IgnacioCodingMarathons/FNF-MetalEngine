@@ -1,219 +1,96 @@
 package backend;
 
-import flixel.FlxState;
-import backend.PsychCamera;
 import debug.TraceDisplay;
+import flixel.FlxState;
+import objects.GlobalLoadingOverlay;
 
-class MusicBeatState extends FlxState
+#if LUA_ALLOWED
+import psychlua.FunkinLua;
+#end
+
+#if HSCRIPT_ALLOWED
+import psychlua.HScript;
+import crowplexus.hscript.Expr.Error as IrisError;
+import crowplexus.hscript.Printer;
+import crowplexus.iris.Iris;
+#end
+
+import psychlua.LuaUtils;
+
+#if sys
+import sys.FileSystem;
+#end
+
+// Script layer on top of BaseMusicBeatState.
+// Adds GlobalScript, per-state HScript/Lua infrastructure and beat callbacks.
+//
+// Hierarchy:
+//   BaseMusicBeatState (camera, beat, mobile, stages)
+//   └── MusicBeatState  (this file — + script hooks)
+//       ├── TitleState / PlayState / etc.
+//       └── CustomState
+
+class MusicBeatState extends BaseMusicBeatState
 {
-	private var curSection:Int = 0;
-	private var stepsToDo:Int = 0;
+	public static inline function stateScriptOverridesEnabled():Bool
+		return ClientPrefs.data.useScriptableCustomStates;
 
-	private var curStep:Int = 0;
-	private var curBeat:Int = 0;
-
-	private var curDecStep:Float = 0;
-	private var curDecBeat:Float = 0;
-	public var controls(get, never):Controls;
-	private function get_controls()
-	{
-		return Controls.instance;
-	}
-
-	public var touchPad:TouchPad;
-	public var touchPadCam:FlxCamera;
-	public var mobileControls:IMobileControls;
-	public var mobileControlsCam:FlxCamera;
-
-	public function addTouchPad(DPad:String, Action:String)
-	{
-		touchPad = new TouchPad(DPad, Action);
-		add(touchPad);
-	}
-
-	public function removeTouchPad()
-	{
-		if (touchPad != null)
-		{
-			remove(touchPad);
-			touchPad = FlxDestroyUtil.destroy(touchPad);
-		}
-
-		if(touchPadCam != null)
-		{
-			FlxG.cameras.remove(touchPadCam);
-			touchPadCam = FlxDestroyUtil.destroy(touchPadCam);
-		}
-	}
-
-	public function addMobileControls(defaultDrawTarget:Bool = false):Void
-	{
-		var extraMode = MobileData.extraActions.get(ClientPrefs.data.extraButtons);
-
-		switch (MobileData.mode)
-		{
-			case 0: // RIGHT_FULL
-				mobileControls = new TouchPad('RIGHT_FULL', 'NONE', extraMode);
-			case 1: // LEFT_FULL
-				mobileControls = new TouchPad('LEFT_FULL', 'NONE', extraMode);
-			case 2: // CUSTOM
-				mobileControls = MobileData.getTouchPadCustom(new TouchPad('RIGHT_FULL', 'NONE', extraMode));
-			case 3: // HITBOX
-				mobileControls = new Hitbox(extraMode);
-		}
-
-		mobileControls.instance = MobileData.setButtonsColors(mobileControls.instance);
-		mobileControlsCam = new FlxCamera();
-		mobileControlsCam.bgColor.alpha = 0;
-		FlxG.cameras.add(mobileControlsCam, defaultDrawTarget);
-
-		mobileControls.instance.cameras = [mobileControlsCam];
-		mobileControls.instance.visible = false;
-		add(mobileControls.instance);
-	}
-
-	public function removeMobileControls()
-	{
-		if (mobileControls != null)
-		{
-			remove(mobileControls.instance);
-			mobileControls.instance = FlxDestroyUtil.destroy(mobileControls.instance);
-			mobileControls = null;
-		}
-
-		if (mobileControlsCam != null)
-		{
-			FlxG.cameras.remove(mobileControlsCam);
-			mobileControlsCam = FlxDestroyUtil.destroy(mobileControlsCam);
-		}
-	}
-
-	public function addTouchPadCamera(defaultDrawTarget:Bool = false):Void
-	{
-		if (touchPad != null)
-		{
-			touchPadCam = new FlxCamera();
-			touchPadCam.bgColor.alpha = 0;
-			FlxG.cameras.add(touchPadCam, defaultDrawTarget);
-			touchPad.cameras = [touchPadCam];
-		}
-	}
-
-	override function destroy()
-	{
-		removeTouchPad();
-		removeMobileControls();
-		
-		// Clear state scripts
-		#if HSCRIPT_ALLOWED
-		StateScriptHandler.callOnStateScripts('onDestroy', []);
-		StateScriptHandler.clearStateScripts();
-		#end
-		
-		// Cleanup TraceDisplay si esta es la última instancia
-		if(traceDisplay != null) {
-			// Solo destruir si no hay otros estados activos
-			// En la práctica, el TraceDisplay debe persistir entre estados
-		}
-		
-		super.destroy();
-	}
-
-	var _psychCameraInitialized:Bool = false;
-
-	public var variables:Map<String, Dynamic> = new Map<String, Dynamic>();
-	public var videoHandlers:Map<String, Dynamic> = new Map<String, Dynamic>(); // Separar videos de variables normales
-
-	/**
-	 * Categorized variable system for State-specific scripts (StateScriptHandler)
-	 * This is used ONLY by State scripts, NOT by PlayState mod scripts
-	 * Categories: Video, Text, Camera, Character, Icon, Sound, Graphic, Tween, Timer, Custom, Instance, Shader, Save, Group
-	 **/
-	public var stateVariables:Map<String, Map<String, Dynamic>> = [
-		"Video" => new Map<String, Dynamic>(),
-		"Text" => new Map<String, Dynamic>(),
-		"Camera" => new Map<String, Dynamic>(),
-		"Character" => new Map<String, Dynamic>(),
-		"Icon" => new Map<String, Dynamic>(),
-		"Sound" => new Map<String, Dynamic>(),
-		"Graphic" => new Map<String, Dynamic>(),
-		"Tween" => new Map<String, Dynamic>(),
-		"Timer" => new Map<String, Dynamic>(),
-		"Custom" => new Map<String, Dynamic>(),
-		"Instance" => new Map<String, Dynamic>(),
-		"Shader" => new Map<String, Dynamic>(),
-		"Save" => new Map<String, Dynamic>(),
-		"Group" => new Map<String, Dynamic>()
-	];
-
-	public static var traceDisplay:TraceDisplay;
+	// Global scripts system
+	#if LUA_ALLOWED
+	public static var globalLuaScript:FunkinLua = null;
+	#end
 	
-	// Helper functions for PlayState mod scripts (simple system)
-	public static function getVariables()
-		return getState().variables;
-		
-	public static function getVideoHandlers()
-		return getState().videoHandlers;
+	#if HSCRIPT_ALLOWED
+	public static var globalScript:HScript = null;
+	public static var publicVariables:Map<String, Dynamic> = new Map<String, Dynamic>();
+	public static var staticVariables:Map<String, Dynamic> = new Map<String, Dynamic>();
+	#end
 	
-	// Helper functions for State scripts (categorized system)
-	public static function getStateVariables(?type:String = "Custom")
-		return getState().stateVariables.get(type);
+	// MusicBeatState specific scripts (run on all MusicBeatState instances but not substates)
+	#if LUA_ALLOWED
+	public static var musicBeatStateLuaScript:FunkinLua = null;
+	#end
 	
-	public static function getStateVariable(obj:String, ?types:Array<String> = null):Dynamic
+	#if HSCRIPT_ALLOWED
+	public static var musicBeatStateScript:HScript = null;
+	#end
+	
+	// Global variables storage that persists across all states
+	public static var globalVariables:Map<String, Dynamic> = new Map<String, Dynamic>();
+	
+	// State scripting system
+	public var stateScripts:Array<Dynamic> = [];
+	public var scriptsAllowed:Bool = true;
+	public var scriptName:String = null;
+
+	// Companion script — loaded automatically alongside any hardcoded state.
+	// Path: scripts/states/{ClassName}.hx (or .lua), searched in mod → global mods → assets/shared.
+	// Lifecycle hooks:
+	//   onCreate / onCreatePost
+	//   onUpdate / onUpdatePost
+	//   onStepHit / onStepHitPost
+	//   onBeatHit / onBeatHitPost
+	//   onSectionHit / onSectionHitPost
+	//   onDestroy / onDestroyPost
+	// Legacy names are preserved for compatibility.
+	#if HSCRIPT_ALLOWED
+	public var companionScript:HScript = null;
+	#end
+	#if LUA_ALLOWED
+	public var companionLuaScript:FunkinLua = null;
+	#end
+
+	// Optional constructor used by CustomState to pass script configuration
+	public function new(?scriptsAllowed:Bool = false, ?scriptName:String = null)
 	{
-		if (types == null) types = getStateVariableTypes();
-		for (varType in types)
-		{
-			if (getStateVariables(varType).exists(obj))
-				return getStateVariables(varType).get(obj);
-		}
-		return null;
+		super();
+		this.scriptsAllowed = scriptsAllowed;
+		this.scriptName = scriptName;
 	}
 	
-	public static function setStateVariable(name:String, value:Dynamic, ?category:String = null):Void
-	{
-		if (category == null)
-		{
-			// Auto-detect category
-			var className = value != null ? Type.getClassName(Type.getClass(value)) : null;
-			category = "Custom";
-			
-			if (className != null) {
-				if (className.contains("VideoSprite") || className.contains("VideoHandler") || className.contains("MP4Handler"))
-					category = "Video";
-				else if (className.contains("FlxText") || className.contains("Alphabet"))
-					category = "Text";
-				else if (className.contains("Camera"))
-					category = "Camera";
-				else if (className.contains("Character"))
-					category = "Character";
-				else if (className.contains("HealthIcon"))
-					category = "Icon";
-				else if (className.contains("FlxSound"))
-					category = "Sound";
-				else if (className.contains("FlxSprite") || className.contains("FlxAnimate"))
-					category = "Graphic";
-				else if (className.contains("FlxTween"))
-					category = "Tween";
-				else if (className.contains("FlxTimer"))
-					category = "Timer";
-				else if (className.contains("Shader"))
-					category = "Shader";
-				else if (className.contains("Group"))
-					category = "Group";
-			}
-		}
-		
-		getStateVariables(category).set(name, value);
-	}
-	
-	public static function getStateVariableTypes():Array<String>
-	{
-		var list:Array<String> = [];
-		for (key in getState().stateVariables.keys())
-			list.push(key);
-		return list;
-	}
+
+
+
 
 	override function create() {
 		var skip:Bool = FlxTransitionableState.skipNextTransOut;
@@ -221,42 +98,47 @@ class MusicBeatState extends FlxState
 
 		if(!_psychCameraInitialized) initPsychCamera();
 		
-		// Inicializar TraceDisplay si no existe
+		// Initialize TraceDisplay if it doesn't exist
 		if(traceDisplay == null && TraceDisplay.instance == null) {
 			traceDisplay = new TraceDisplay();
 			if(FlxG.stage != null) {
 				FlxG.stage.addChild(traceDisplay);
 			}
 		} else if (TraceDisplay.instance != null) {
-			// Usar la instancia existente
+			// Reuse existing instance
 			traceDisplay = TraceDisplay.instance;
 		}
-
-		// Load state-specific scripts
-		#if HSCRIPT_ALLOWED
-		var stateName:String = Type.getClassName(Type.getClass(this)).split('.').pop();
-		StateScriptHandler.loadStateScripts(stateName);
-		#end
 
 		super.create();
 
 		if(!skip) {
-			openSubState(new CustomFadeTransition(0.7, true));
+			// Call scripts before fade in - if they return Function_Stop, they handle their own transition
+			var globalResult = callOnGlobalScript('onFadeIn');
+			var stateResult = callOnMusicBeatStateScript('onFadeIn');
+			
+			// Only use default transition if scripts didn't stop it
+			if(globalResult != LuaUtils.Function_Stop && stateResult != LuaUtils.Function_Stop) {
+				openSubState(new CustomFadeTransition(0.7, true));
+			}
 		}
 		FlxTransitionableState.skipNextTransOut = false;
 		timePassedOnState = 0;
+
+		// Auto-load companion script for this specific state class.
+		// Skipped for ScriptableState/CustomState (they handle their own scripts),
+		// and when running inside them as sub-instances.
+		#if (HSCRIPT_ALLOWED && sys)
+		var isScriptDriven:Bool = (this is backend.ScriptableState) || (this is backend.CustomState);
+		if (!isScriptDriven && stateScriptOverridesEnabled())
+			_loadCompanionScript();
+		#end
+
+		// Legacy midpoint create hook.
+		callOnCompanionScript('onCreate');
+		callOnCompanionScript('onCreatePost');
 	}
 
-	public function initPsychCamera():PsychCamera
-	{
-		var camera = new PsychCamera();
-		FlxG.cameras.reset(camera);
-		FlxG.cameras.setDefaultDrawTarget(camera, true);
-		_psychCameraInitialized = true;
-		//trace('initialized psych camera ' + Sys.cpuTime());
-		return camera;
-	}
-
+	public static var traceDisplay:TraceDisplay;
 	public static var timePassedOnState:Float = 0;
 	override function update(elapsed:Float)
 	{
@@ -266,11 +148,6 @@ class MusicBeatState extends FlxState
 
 		updateCurStep();
 		updateBeat();
-
-		// Update state scripts
-		#if HSCRIPT_ALLOWED
-		StateScriptHandler.updateStateScripts(elapsed);
-		#end
 
 		if (oldStep != curStep)
 		{
@@ -292,63 +169,25 @@ class MusicBeatState extends FlxState
 		#if desktop
 		if (FlxG.keys.justPressed.F5)
 		{
-			Screenshot.capture();
+			backend.Screenshot.capture();
 		}
 		#end
+		
+		// Call global script update
+		callOnGlobalScript('onUpdate', [elapsed]);
+		// Call MusicBeatState-specific script
+		callOnMusicBeatStateScript('onUpdate', [elapsed]);
+		// Legacy pre-update hook
+		callOnCompanionScript('onUpdate', [elapsed]);
 		
 		stagesFunc(function(stage:BaseStage) {
 			stage.update(elapsed);
 		});
 
 		super.update(elapsed);
-	}
 
-	private function updateSection():Void
-	{
-		if(stepsToDo < 1) stepsToDo = Math.round(getBeatsOnSection() * 4);
-		while(curStep >= stepsToDo)
-		{
-			curSection++;
-			var beats:Float = getBeatsOnSection();
-			stepsToDo += Math.round(beats * 4);
-			sectionHit();
-		}
-	}
-
-	private function rollbackSection():Void
-	{
-		if(curStep < 0) return;
-
-		var lastSection:Int = curSection;
-		curSection = 0;
-		stepsToDo = 0;
-		for (i in 0...PlayState.SONG.notes.length)
-		{
-			if (PlayState.SONG.notes[i] != null)
-			{
-				stepsToDo += Math.round(getBeatsOnSection() * 4);
-				if(stepsToDo > curStep) break;
-				
-				curSection++;
-			}
-		}
-
-		if(curSection > lastSection) sectionHit();
-	}
-
-	private function updateBeat():Void
-	{
-		curBeat = Math.floor(curStep / 4);
-		curDecBeat = curDecStep/4;
-	}
-
-	private function updateCurStep():Void
-	{
-		var lastChange = Conductor.getBPMFromSeconds(Conductor.songPosition);
-
-		var shit = ((Conductor.songPosition - ClientPrefs.data.noteOffset) - lastChange.songTime) / lastChange.stepCrochet;
-		curDecStep = lastChange.stepTime + shit;
-		curStep = lastChange.stepTime + Math.floor(shit);
+		// Companion post-update (fires after all logic)
+		callOnCompanionScript('onUpdatePost', [elapsed]);
 	}
 
 	public static function switchState(nextState:FlxState = null) {
@@ -359,15 +198,57 @@ class MusicBeatState extends FlxState
 			return;
 		}
 
+		// State replacement is opt-in only (explicit tryCreate usage).
+		// By default, hardcoded states run with companion scripts from scripts/states/*.
+
+		// Call scripts before switching - they can stop the default transition
+		var globalResult = callOnGlobalScript('onSwitchState', [Type.getClassName(Type.getClass(nextState))]);
+		var stateResult = callOnMusicBeatStateScript('onSwitchState', [Type.getClassName(Type.getClass(nextState))]);
+		
+		// If scripts stopped the transition, they handle it themselves
+		if(globalResult == LuaUtils.Function_Stop || stateResult == LuaUtils.Function_Stop) {
+			// Script is handling the transition, just switch without custom transition
+			FlxG.switchState(nextState);
+			return;
+		}
+		
 		if(FlxTransitionableState.skipNextTransIn) FlxG.switchState(nextState);
 		else startTransition(nextState);
 		FlxTransitionableState.skipNextTransIn = false;
 	}
 
 	public static function resetState() {
-		if(FlxTransitionableState.skipNextTransIn) FlxG.resetState();
+		// Call scripts before resetting - they can stop the default transition
+		var globalResult = callOnGlobalScript('onResetState');
+		var stateResult = callOnMusicBeatStateScript('onResetState');
+		
+		// If scripts stopped the transition, they handle it themselves
+		if(globalResult == LuaUtils.Function_Stop || stateResult == LuaUtils.Function_Stop) {
+			// Script is handling the transition, just reset without custom transition
+			FlxG.switchState(_makeCurrentStateReset());
+			return;
+		}
+		
+		if(FlxTransitionableState.skipNextTransIn) FlxG.switchState(_makeCurrentStateReset());
 		else startTransition();
 		FlxTransitionableState.skipNextTransIn = false;
+	}
+
+	/**
+	 * Returns a lambda that creates a fresh instance of the current state.
+	 * Handles ScriptableState properly (FlxG.resetState breaks it because
+	 * ScriptableState requires a constructor argument).
+	 */
+	static function _makeCurrentStateReset():()->flixel.FlxState {
+		#if (HSCRIPT_ALLOWED && sys)
+		var cs = FlxG.state;
+		if (cs is backend.ScriptableState) {
+			var name:String = (cast cs : backend.ScriptableState).stateName;
+			return () -> new backend.ScriptableState(name);
+		}
+		#end
+		var cls = Type.getClass(FlxG.state);
+		return () -> Type.createInstance(cls, []);
 	}
 
 	// Custom made Trans in
@@ -375,78 +256,653 @@ class MusicBeatState extends FlxState
 	{
 		if(nextState == null)
 			nextState = FlxG.state;
+		GlobalLoadingOverlay.showPersistent();
 
+		// Call scripts when transition starts - if they return Function_Stop, they handle their own transition
+		var isReset:Bool = (nextState == FlxG.state);
+		var globalResult = callOnGlobalScript('onStartTransition', [isReset, Type.getClassName(Type.getClass(nextState))]);
+		var stateResult = callOnMusicBeatStateScript('onStartTransition', [isReset, Type.getClassName(Type.getClass(nextState))]);
+		
+		// If scripts stopped it, they're handling the transition themselves
+		if(globalResult == LuaUtils.Function_Stop || stateResult == LuaUtils.Function_Stop) {
+			if(isReset)
+				FlxG.switchState(_makeCurrentStateReset());
+			else
+				FlxG.switchState(nextState);
+			return;
+		}
+		
 		FlxG.state.openSubState(new CustomFadeTransition(0.7, false));
-		if(nextState == FlxG.state)
-			CustomFadeTransition.finishCallback = function() FlxG.resetState();
-		else
+		if(nextState == FlxG.state) {
+			var resetFn = _makeCurrentStateReset();
+			CustomFadeTransition.finishCallback = function() FlxG.switchState(resetFn);
+		} else {
 			CustomFadeTransition.finishCallback = function() FlxG.switchState(nextState);
+		}
 	}
 
 	public static function getState():MusicBeatState {
-		return cast (FlxG.state, MusicBeatState);
+		return cast(FlxG.state, MusicBeatState);
 	}
 
-	public function stepHit():Void
+	// Bridge static methods — Haxe does not inherit static fields,
+	// so these delegate to the definitions in BaseMusicBeatState.
+	public static function getVariables():Map<String, Dynamic>
+		return BaseMusicBeatState.getVariables();
+
+	public static function getVideoHandlers():Map<String, Dynamic>
+		return BaseMusicBeatState.getVideoHandlers();
+
+	override public function stepHit():Void
 	{
-		stagesFunc(function(stage:BaseStage) {
-			stage.curStep = curStep;
-			stage.curDecStep = curDecStep;
-			stage.stepHit();
-		});
+		callOnGlobalScript('onStepHit', [curStep]);
+		callOnMusicBeatStateScript('onStepHit', [curStep]);
+		// Legacy pre-step hook
+		callOnCompanionScript('onStepHit', [curStep]);
+		super.stepHit();
+		callOnCompanionScript('onStepHitPost', [curStep]);
+	}
+
+	override public function beatHit():Void
+	{
+		callOnGlobalScript('onBeatHit', [curBeat]);
+		callOnMusicBeatStateScript('onBeatHit', [curBeat]);
+		// Legacy pre-beat hook
+		callOnCompanionScript('onBeatHit', [curBeat]);
+		super.beatHit();
+		callOnCompanionScript('onBeatHitPost', [curBeat]);
+	}
+
+	override public function sectionHit():Void
+	{
+		callOnGlobalScript('onSectionHit', [curSection]);
+		callOnMusicBeatStateScript('onSectionHit', [curSection]);
+		// Legacy pre-section hook
+		callOnCompanionScript('onSectionHit', [curSection]);
+		super.sectionHit();
+		callOnCompanionScript('onSectionHitPost', [curSection]);
+	}
+
+	override function destroy():Void
+	{
+		// Legacy destroy hook
+		callOnCompanionScript('onDestroy');
+
+		super.destroy();
+
+		callOnCompanionScript('onDestroyPost');
 
 		#if HSCRIPT_ALLOWED
-		StateScriptHandler.setOnStateScripts('curStep', curStep);
-		StateScriptHandler.setOnStateScripts('curDecStep', curDecStep);
-		StateScriptHandler.callOnStateScripts('onStepHit', []);
+		if (companionScript != null)
+		{
+			companionScript.destroy();
+			companionScript = null;
+		}
 		#end
-
-		if (curStep % 4 == 0)
-			beatHit();
+		#if LUA_ALLOWED
+		if (companionLuaScript != null)
+		{
+			companionLuaScript.stop();
+			companionLuaScript = null;
+		}
+		#end
 	}
 
-	public var stages:Array<BaseStage> = [];
-	public function beatHit():Void
+	// ─── Companion script helpers ──────────────────────────────────────────────
+
+	#if (HSCRIPT_ALLOWED && sys)
+	/**
+	 * Loads the companion script for the current state class.
+	 * Search order: active mod → global mods → assets/shared.
+	 * File: scripts/states/{ClassName}.hx (and .lua if LUA_ALLOWED).
+	 */
+	function _loadCompanionScript():Void
 	{
-		//trace('Beat: ' + curBeat);
-		stagesFunc(function(stage:BaseStage) {
-			stage.curBeat = curBeat;
-			stage.curDecBeat = curDecBeat;
-			stage.beatHit();
-		});
+		// Get simple class name from the fully-qualified one
+		var fullName:String = Type.getClassName(Type.getClass(this));
+		var parts = fullName.split('.');
+		var clsName:String = parts[parts.length - 1];
+		var rel:String = 'scripts/states/$clsName.hx';
+
+		var path:String = null;
+
+		#if MODS_ALLOWED
+		// modFolders checks currentModDirectory then global mods in priority order
+		var modded:String = Paths.modFolders(rel);
+		if (FileSystem.exists(modded)) path = modded;
+		#end
+
+		if (path == null)
+		{
+			var shared:String = Paths.getSharedPath(rel);
+			if (FileSystem.exists(shared)) path = shared;
+		}
+
+		#if LUA_ALLOWED
+		// Also check for a Lua companion
+		var luaRel:String = 'scripts/states/$clsName.lua';
+		var luaPath:String = null;
+		#if MODS_ALLOWED
+		var moddedLua:String = Paths.modFolders(luaRel);
+		if (FileSystem.exists(moddedLua)) luaPath = moddedLua;
+		#end
+		if (luaPath == null)
+		{
+			var sharedLua:String = Paths.getSharedPath(luaRel);
+			if (FileSystem.exists(sharedLua)) luaPath = sharedLua;
+		}
+		if (luaPath != null)
+		{
+			try { companionLuaScript = new FunkinLua(luaPath); }
+			catch(e:Dynamic) { trace('[CompanionScript] Lua error in $luaPath: $e'); }
+		}
+		#end
+
+		if (path == null) return;
+
+		try
+		{
+			companionScript = new HScript(null, path);
+
+			// Expose useful variables — 'game' points to the actual hardcoded state
+			companionScript.set('game',         this);
+			companionScript.set('add',          this.add);
+			companionScript.set('remove',       this.remove);
+			companionScript.set('insert',       this.insert);
+			companionScript.set('openSubState', this.openSubState);
+
+			// Shared/static var helpers (same API as CustomState)
+			companionScript.set('setSharedVar', function(n:String, v:Dynamic) {
+				MusicBeatState.globalVariables.set(n, v);
+				variables.set(n, v);
+				return v;
+			});
+			companionScript.set('getSharedVar', function(n:String, ?def:Dynamic = null):Dynamic {
+				if (MusicBeatState.globalVariables.exists(n)) return MusicBeatState.globalVariables.get(n);
+				if (variables.exists(n)) return variables.get(n);
+				return def;
+			});
+			companionScript.set('setStaticVar', function(n:String, v:Dynamic) {
+				MusicBeatState.staticVariables.set(n, v); return v;
+			});
+			companionScript.set('getStaticVar', function(n:String, ?def:Dynamic = null):Dynamic
+				return MusicBeatState.staticVariables.exists(n) ? MusicBeatState.staticVariables.get(n) : def);
+
+			trace('[CompanionScript] Loaded for state "$clsName": $path');
+		}
+		catch(e:crowplexus.hscript.Expr.Error)
+		{
+			var msg = crowplexus.hscript.Printer.errorToString(e, false);
+			trace('[CompanionScript] HScript error in $path:\n$msg');
+			if (debug.TraceDisplay.instance != null)
+				debug.TraceDisplay.addHScriptError(msg, path);
+		}
+		catch(e:Dynamic)
+		{
+			trace('[CompanionScript] Failed to load $path: $e');
+		}
+	}
+	#end
+
+	/**
+	 * Calls a callback on the companion script(s).
+	 * On HScript: tries `onXxx` then bare `xxx` (CustomState convention).
+	 * On Lua: calls the function directly.
+	 */
+	public function callOnCompanionScript(funcName:String, args:Array<Dynamic> = null):Dynamic
+	{
+		if (args == null) args = [];
+		var ret:Dynamic = LuaUtils.Function_Continue;
+		if (!MusicBeatState.stateScriptOverridesEnabled()) return ret;
+
+		#if LUA_ALLOWED
+		if (companionLuaScript != null)
+		{
+			var v = companionLuaScript.call(funcName, args);
+			if (v != null && v != LuaUtils.Function_Continue) ret = v;
+		}
+		#end
 
 		#if HSCRIPT_ALLOWED
-		StateScriptHandler.setOnStateScripts('curBeat', curBeat);
-		StateScriptHandler.setOnStateScripts('curDecBeat', curDecBeat);
-		StateScriptHandler.callOnStateScripts('onBeatHit', []);
+		if (companionScript != null)
+		{
+			try
+			{
+				// Try bare name first (onCreate), then try without 'on' prefix as fallback
+				var fn:String = companionScript.exists(funcName) ? funcName : null;
+				if (fn == null && funcName.startsWith('on'))
+				{
+					var bare = funcName.charAt(2).toLowerCase() + funcName.substr(3);
+					if (companionScript.exists(bare)) fn = bare;
+				}
+				if (fn != null)
+				{
+					var callValue = companionScript.call(fn, args);
+					if (callValue != null && callValue.returnValue != null && callValue.returnValue != LuaUtils.Function_Continue)
+						ret = callValue.returnValue;
+				}
+			}
+			catch(e:Dynamic)
+			{
+				trace('[CompanionScript] Error calling $funcName: $e');
+				@:privateAccess
+				var fileName = companionScript.origin != null ? companionScript.origin : "CompanionScript";
+				debug.TraceDisplay.addHScriptError('Runtime error in $funcName: $e', fileName);
+			}
+		}
 		#end
+
+		return ret;
 	}
 
-	public function sectionHit():Void
+	// Global Script Management
+	public static function clearAllSharedVars():Void
 	{
-		//trace('Section: ' + curSection + ', Beat: ' + curBeat + ', Step: ' + curStep);
-		stagesFunc(function(stage:BaseStage) {
-			stage.curSection = curSection;
-			stage.sectionHit();
-		});
-
+		globalVariables.clear();
+		trace('MusicBeatState: All shared vars cleared globally');
+	}
+	
+	public static function clearModSharedVars(modName:String):Void
+	{
+		var keysToRemove:Array<String> = [];
+		for(key in globalVariables.keys())
+		{
+			if(key.startsWith('${modName}_'))
+				keysToRemove.push(key);
+		}
+		
+		for(key in keysToRemove)
+		{
+			globalVariables.remove(key);
+			trace('MusicBeatState: Removed shared var: $key');
+		}
+	}
+	
+	public static function initGlobalScript():Void
+	{
+		#if MODS_ALLOWED
+		Mods.loadTopMod();
+		#end
+		
+		// Try to load Lua GlobalScript first
+		#if (LUA_ALLOWED && sys)
+		if(globalLuaScript == null)
+		{
+			#if MODS_ALLOWED
+			var luaPath:String = Paths.modFolders('scripts/GlobalScript.lua');
+			if(!FileSystem.exists(luaPath))
+				luaPath = Paths.getSharedPath('scripts/GlobalScript.lua');
+			#else
+			var luaPath:String = Paths.getSharedPath('scripts/GlobalScript.lua');
+			#end
+			
+			if(FileSystem.exists(luaPath))
+			{
+				trace('Loading Global Lua Script from: $luaPath');
+				globalLuaScript = new FunkinLua(luaPath);
+				trace('GlobalScript (Lua) initialized successfully');
+			}
+		}
+		#end
+		
+		// Then load HScript GlobalScript
+		if(globalScript != null) return; // Already initialized
+		
+		#if MODS_ALLOWED
+		var scriptPath:String = Paths.modFolders('scripts/GlobalScript.hx');
+		if(scriptPath == null || !FileSystem.exists(scriptPath))
+			scriptPath = Paths.getSharedPath('scripts/GlobalScript.hx');
+		#else
+		var scriptPath:String = Paths.getSharedPath('scripts/GlobalScript.hx');
+		#end
+		
+		if(scriptPath == null) {
+			trace('GlobalScript: scriptPath is null, Paths may not be initialized yet');
+			return;
+		}
+		
+		if(FileSystem.exists(scriptPath))
+		{
+			try
+			{
+				trace('GlobalScript: Loading script from: $scriptPath');
+				
+				// Create the script in manual mode so we can inject globals before parsing
+				// This avoids parse-time errors like "Unknown variable" inside functions.
+				globalScript = new HScript(null, scriptPath, null, true);
+				
+				if(globalScript == null) {
+					trace('GlobalScript: Failed to create HScript instance');
+					return;
+				}
+				
+				trace('GlobalScript: HScript created successfully');
+				
+				// Initialize Maps if null (safety check)
+				if(globalVariables == null) {
+					trace('GlobalScript: WARNING - globalVariables was null, initializing...');
+					globalVariables = new Map<String, Dynamic>();
+				}
+				#if HSCRIPT_ALLOWED
+				if(staticVariables == null) {
+					trace('GlobalScript: WARNING - staticVariables was null, initializing...');
+					staticVariables = new Map<String, Dynamic>();
+				}
+				if(publicVariables == null) {
+					trace('GlobalScript: WARNING - publicVariables was null, initializing...');
+					publicVariables = new Map<String, Dynamic>();
+				}
+				#end
+				
+				trace('GlobalScript: Setting up global functions...');
+				
+				// Global variables functions
+				try {
+					globalScript.set('setGlobalVar', function(name:String, value:Dynamic) {
+						if(globalVariables != null) {
+							globalVariables.set(name, value);
+							trace('GlobalScript: Global var set - $name = $value');
+						}
+						return value;
+					});
+				} catch(e:Dynamic) {
+					trace('GlobalScript: Error setting setGlobalVar: $e');
+				}
+				
+				try {
+					globalScript.set('getGlobalVar', function(name:String, ?defaultValue:Dynamic = null):Dynamic {
+						if (globalVariables != null && globalVariables.exists(name)) {
+							return globalVariables.get(name);
+						}
+						return defaultValue;
+					});
+				} catch(e:Dynamic) {
+					trace('GlobalScript: Error setting getGlobalVar: $e');
+				}
+				
+				try {
+					globalScript.set('hasGlobalVar', function(name:String):Bool {
+						return globalVariables != null && globalVariables.exists(name);
+					});
+				} catch(e:Dynamic) {
+					trace('GlobalScript: Error setting hasGlobalVar: $e');
+				}
+				
+				try {
+					globalScript.set('removeGlobalVar', function(name:String):Bool {
+						if (globalVariables != null && globalVariables.exists(name)) {
+							globalVariables.remove(name);
+							return true;
+						}
+						return false;
+					});
+				} catch(e:Dynamic) {
+					trace('GlobalScript: Error setting removeGlobalVar: $e');
+				}
+				
+				// Static variables access
+				#if HSCRIPT_ALLOWED
+				try {
+					globalScript.set('setStaticVar', function(name:String, value:Dynamic) {
+						if(staticVariables != null) {
+							staticVariables.set(name, value);
+						}
+						return value;
+					});
+				} catch(e:Dynamic) {
+					trace('GlobalScript: Error setting setStaticVar: $e');
+				}
+				
+				try {
+					globalScript.set('getStaticVar', function(name:String, ?defaultValue:Dynamic = null):Dynamic {
+						return (staticVariables != null && staticVariables.exists(name)) ? staticVariables.get(name) : defaultValue;
+					});
+				} catch(e:Dynamic) {
+					trace('GlobalScript: Error setting getStaticVar: $e');
+				}
+				
+				// Public variables access
+				try {
+					globalScript.set('setPublicVar', function(name:String, value:Dynamic) {
+						if(publicVariables != null) {
+							publicVariables.set(name, value);
+						}
+						return value;
+					});
+				} catch(e:Dynamic) {
+					trace('GlobalScript: Error setting setPublicVar: $e');
+				}
+				
+				try {
+					globalScript.set('getPublicVar', function(name:String, ?defaultValue:Dynamic = null):Dynamic {
+						return (publicVariables != null && publicVariables.exists(name)) ? publicVariables.get(name) : defaultValue;
+					});
+				} catch(e:Dynamic) {
+					trace('GlobalScript: Error setting getPublicVar: $e');
+				}
+				
+				trace('GlobalScript: Functions configured successfully');
+				
+				// Now parse and execute the script with the injected globals available
+				globalScript.parse(true);
+				globalScript.execute();
+				trace('GlobalScript: Script parsed and executed successfully');
+				
+				// Call onCreate if it exists (like PlayState and CustomState do)
+				try {
+					if (globalScript.exists('onCreate')) {
+						globalScript.call('onCreate');
+						trace('GlobalScript: onCreate() called successfully');
+					} else {
+						trace('GlobalScript: No onCreate() function found');
+					}
+				} catch(e:Dynamic) {
+					trace('GlobalScript: Error calling onCreate: $e');
+				}
+				
+				trace('GlobalScript initialized successfully from: $scriptPath');
+			}
+			catch(e:IrisError)
+			{
+				trace('GlobalScript IrisError caught');
+				try {
+					var errorMsg = Printer.errorToString(e, false);
+					trace('GlobalScript Error: $errorMsg');
+					if(TraceDisplay.instance != null)
+						TraceDisplay.addHScriptError(errorMsg, scriptPath);
+				} catch(printerError:Dynamic) {
+					trace('GlobalScript: Error while processing IrisError: $printerError');
+					trace('GlobalScript: Original error object: $e');
+				}
+			}
+			catch(e:Dynamic)
+			{
+				trace('GlobalScript Error (unexpected): $e');
+				trace('GlobalScript Error Type: ${Type.typeof(e)}');
+				#if HSCRIPT_ALLOWED
+				try {
+					if(TraceDisplay.instance != null)
+						TraceDisplay.addHScriptError('Unexpected error: $e', scriptPath);
+				} catch(displayError:Dynamic) {
+					trace('GlobalScript: Could not add error to TraceDisplay: $displayError');
+				}
+				#end
+			}
+		}
+		else
+		{
+			trace('No GlobalScript found at: $scriptPath');
+		}
+		#end
+	}
+	
+	public static function callOnGlobalScript(funcToCall:String, args:Array<Dynamic> = null):Dynamic
+	{
+		var returnVal:Dynamic = LuaUtils.Function_Continue;
+		
+		// Call on global Lua script first
+		#if LUA_ALLOWED
+		if(globalLuaScript != null)
+		{
+			var ret:Dynamic = globalLuaScript.call(funcToCall, args != null ? args : []);
+			if(ret != null && ret != LuaUtils.Function_Continue)
+				returnVal = ret;
+		}
+		#end
+		
+		// Then call on global HScript
 		#if HSCRIPT_ALLOWED
-		StateScriptHandler.setOnStateScripts('curSection', curSection);
-		StateScriptHandler.callOnStateScripts('onSectionHit', []);
+		if(globalScript != null && globalScript.exists(funcToCall))
+		{
+			try {
+				var callValue = globalScript.call(funcToCall, args);
+				if(callValue != null && callValue.returnValue != null)
+				{
+					var myValue:Dynamic = callValue.returnValue;
+					if(myValue != LuaUtils.Function_Continue)
+						returnVal = myValue;
+				}
+			}
+			catch(e:Dynamic) {
+				trace('GlobalScript Error calling $funcToCall: $e');
+				@:privateAccess
+				var fileName = globalScript.origin != null ? globalScript.origin : "GlobalScript";
+				TraceDisplay.addHScriptError('Runtime error in $funcToCall: $e', fileName);
+			}
+		}
+		#end
+		
+		return returnVal;
+	}
+	
+	public static function initMusicBeatStateScript():Void
+	{
+		// Try to load Lua MusicBeatState script first
+		#if (LUA_ALLOWED && sys)
+		if(musicBeatStateLuaScript == null)
+		{
+			#if MODS_ALLOWED
+			var luaPath:String = Paths.modFolders('scripts/MusicBeatState.lua');
+			if(!FileSystem.exists(luaPath))
+				luaPath = Paths.getSharedPath('scripts/MusicBeatState.lua');
+			#else
+			var luaPath:String = Paths.getSharedPath('scripts/MusicBeatState.lua');
+			#end
+			
+			if(FileSystem.exists(luaPath))
+			{
+				trace('Loading MusicBeatState Lua Script from: $luaPath');
+				musicBeatStateLuaScript = new FunkinLua(luaPath);
+				trace('MusicBeatState (Lua) initialized successfully');
+			}
+		}
+		#end
+		
+		// Then load HScript MusicBeatState script
+		if(musicBeatStateScript != null) return; // Already initialized
+		
+		#if MODS_ALLOWED
+		var scriptPath:String = Paths.modFolders('scripts/MusicBeatState.hx');
+		if(scriptPath == null || !FileSystem.exists(scriptPath))
+			scriptPath = Paths.getSharedPath('scripts/MusicBeatState.hx');
+		#else
+		var scriptPath:String = Paths.getSharedPath('scripts/MusicBeatState.hx');
+		#end
+		
+		if(scriptPath == null || !FileSystem.exists(scriptPath))
+		{
+			trace('No MusicBeatState script found');
+			return;
+		}
+		
+		#if HSCRIPT_ALLOWED
+		try
+		{
+			trace('MusicBeatState: Loading script from: $scriptPath');
+			musicBeatStateScript = new HScript(null, scriptPath, null, true);
+			
+			if(musicBeatStateScript == null)
+			{
+				trace('MusicBeatState: Failed to create HScript instance');
+				return;
+			}
+			
+			// Set up helper functions
+			musicBeatStateScript.set('import', function(className:String) {
+				trace('MusicBeatState: Import is built-in, $className should already be available');
+			});
+			
+			// Parse and execute
+			musicBeatStateScript.parse(true);
+			musicBeatStateScript.execute();
+			
+			// Call onCreate if it exists
+			if (musicBeatStateScript.exists('onCreate'))
+			{
+				musicBeatStateScript.call('onCreate');
+				trace('MusicBeatState: onCreate() called successfully');
+			}
+			
+			trace('MusicBeatState script initialized successfully');
+		}
+		catch(e:IrisError)
+		{
+			try {
+				var errorMsg = Printer.errorToString(e, false);
+				trace('MusicBeatState Script Error: $errorMsg');
+				if(TraceDisplay.instance != null)
+					TraceDisplay.addHScriptError(errorMsg, scriptPath);
+			} catch(printerError:Dynamic) {
+				trace('MusicBeatState: Error while processing IrisError: $printerError');
+			}
+		}
+		catch(e:Dynamic)
+		{
+			trace('MusicBeatState Script Error (unexpected): $e');
+			#if HSCRIPT_ALLOWED
+			if(TraceDisplay.instance != null)
+				TraceDisplay.addHScriptError('Unexpected error: $e', scriptPath);
+			#end
+		}
 		#end
 	}
-
-	function stagesFunc(func:BaseStage->Void)
+	
+	public static function callOnMusicBeatStateScript(funcToCall:String, args:Array<Dynamic> = null):Dynamic
 	{
-		for (stage in stages)
-			if(stage != null && stage.exists && stage.active)
-				func(stage);
-	}
-
-	function getBeatsOnSection()
-	{
-		var val:Null<Float> = 4;
-		if(PlayState.SONG != null && PlayState.SONG.notes[curSection] != null) val = PlayState.SONG.notes[curSection].sectionBeats;
-		return val == null ? 4 : val;
+		var returnVal:Dynamic = LuaUtils.Function_Continue;
+		
+		// Call on Lua script first
+		#if LUA_ALLOWED
+		if(musicBeatStateLuaScript != null)
+		{
+			var ret:Dynamic = musicBeatStateLuaScript.call(funcToCall, args != null ? args : []);
+			if(ret != null && ret != LuaUtils.Function_Continue)
+				returnVal = ret;
+		}
+		#end
+		
+		// Then call on HScript
+		#if HSCRIPT_ALLOWED
+		if(musicBeatStateScript != null && musicBeatStateScript.exists(funcToCall))
+		{
+			try {
+				var callValue = musicBeatStateScript.call(funcToCall, args);
+				if(callValue != null && callValue.returnValue != null)
+				{
+					var myValue:Dynamic = callValue.returnValue;
+					if(myValue != LuaUtils.Function_Continue)
+						returnVal = myValue;
+				}
+			}
+			catch(e:Dynamic) {
+				trace('MusicBeatState Script Error calling $funcToCall: $e');
+				@:privateAccess
+				var fileName = musicBeatStateScript.origin != null ? musicBeatStateScript.origin : "MusicBeatState";
+				TraceDisplay.addHScriptError('Runtime error in $funcToCall: $e', fileName);
+			}
+		}
+		#end
+		
+		return returnVal;
 	}
 }
