@@ -22,6 +22,15 @@ class MaterialWavyProgressIndicator extends FlxSpriteGroup
 	public var indicatorExtent:Float = 240;
 	public var animationSpeed:Float = 2.6;
 	public var waveUsesGradient(default, null):Bool = false;
+	public var linearGapSize:Float = 4; // Pixels of separation between filled and unfilled segments.
+	public var linearShowStopDot:Bool = false; // Material stop indicator on determinate linear end.
+	public var linearStopDotSize:Float = 4;
+	public var linearHeightScale:Float = 1.0;
+	public var linearWaveThicknessScale:Float = 1.0;
+	public var linearTrackThicknessScale:Float = 1.0;
+	public var circularEdgeGap:Float = 0; // Radians trimmed from both ends in determinate circular mode.
+	public var circularTrackRadiusOffset:Float = 0; // Pixels added to track radius (negative = inward).
+	public var circularTrackThicknessScale:Float = 1; // Track thickness multiplier.
 
 	var linearTrack:FlxSprite;
 	var linearWave:FlxSprite;
@@ -39,7 +48,7 @@ class MaterialWavyProgressIndicator extends FlxSpriteGroup
 
 	static inline var REDRAW_INTERVAL:Float = 1 / 30;
 
-	inline function linearHeight():Int return MD3Metrics.size(8);
+	inline function linearHeight():Int return Std.int(MD3Metrics.size(8) * Math.max(1, linearHeightScale));
 	inline function linearCorner():Int return MD3Metrics.corner(4, indicatorExtent, linearHeight());
 	inline function circularSize():Int return Std.int(indicatorExtent > 0 ? indicatorExtent : MD3Metrics.size(56));
 	inline function circularThickness():Float return MD3Metrics.size(6);
@@ -111,8 +120,7 @@ class MaterialWavyProgressIndicator extends FlxSpriteGroup
 
 		linearTrack = new FlxSprite(0, 0);
 		linearTrack.antialiasing = ClientPrefs.data.antialiasing;
-		MD3ShapeTools.fillRoundRect(linearTrack, width, height, linearCorner());
-		linearTrack.color = MD3Theme.surfaceVariant;
+		linearTrack.makeGraphic(width, height, FlxColor.TRANSPARENT, true);
 		add(linearTrack);
 
 		linearWave = new FlxSprite(0, 0);
@@ -225,15 +233,18 @@ class MaterialWavyProgressIndicator extends FlxSpriteGroup
 	function drawLinearWave():Void
 	{
 		if (linearWave == null) return;
+		drawLinearTrack();
 
 		var bitmap = linearWave.pixels;
 		bitmap.fillRect(bitmap.rect, FlxColor.TRANSPARENT);
 
 		var width = indicatorExtent;
 		var height = linearHeight();
-		var stroke = height * 0.72;
+		var stroke = height * 0.72 * linearWaveThicknessScale;
 		var centerY = height * 0.5;
 		var amplitude = Math.max(1.0, height * 0.18);
+		var maxAmplitude = Math.max(0.0, ((height - stroke) * 0.5) - 1);
+		amplitude = Math.min(amplitude, maxAmplitude);
 		var waveLength = Math.max(MD3Metrics.size(36), height * 3.0);
 		var availableWidth = Math.max(0.0, width - stroke);
 
@@ -251,6 +262,11 @@ class MaterialWavyProgressIndicator extends FlxSpriteGroup
 
 		var startX = stroke * 0.5 + startOffset;
 		var endX = stroke * 0.5 + endOffset;
+		if (!indeterminate)
+		{
+			var gap = FlxMath.bound(linearGapSize, 0, availableWidth * 0.5);
+			endX -= gap * 0.5;
+		}
 		if (endX - startX <= 0.5)
 		{
 			linearWave.dirty = true;
@@ -280,7 +296,59 @@ class MaterialWavyProgressIndicator extends FlxSpriteGroup
 		}
 
 		bitmap.draw(shape);
+
+		if (!indeterminate && linearShowStopDot)
+		{
+			var dotRadius = Math.max(1.0, linearStopDotSize * 0.5);
+			var dotColor = resolveWaveColor(1);
+			var dotShape = new Shape();
+			dotShape.graphics.beginFill(stripAlpha(dotColor), colorAlpha(dotColor));
+			dotShape.graphics.drawCircle(width - dotRadius, centerY, dotRadius);
+			dotShape.graphics.endFill();
+			bitmap.draw(dotShape);
+		}
 		linearWave.dirty = true;
+	}
+
+	function drawLinearTrack():Void
+	{
+		if (linearTrack == null) return;
+
+		var bitmap = linearTrack.pixels;
+		bitmap.fillRect(bitmap.rect, FlxColor.TRANSPARENT);
+
+		var width = indicatorExtent;
+		var height = linearHeight();
+		var stroke = height * 0.72 * linearTrackThicknessScale;
+		var centerY = height * 0.5;
+		var availableWidth = Math.max(0.0, width - stroke);
+
+		var startOffset = 0.0;
+		var endOffset = availableWidth * value;
+		if (indeterminate)
+		{
+			startOffset = 0;
+			endOffset = availableWidth;
+		}
+
+		var gap = indeterminate ? 0.0 : FlxMath.bound(linearGapSize, 0, availableWidth * 0.5);
+		var startX = stroke * 0.5 + endOffset + gap * 0.5;
+		var endX = stroke * 0.5 + availableWidth;
+
+		if (endX - startX <= 0.5)
+		{
+			linearTrack.dirty = true;
+			return;
+		}
+
+		var shape = new Shape();
+		var graphics = shape.graphics;
+		graphics.lineStyle(stroke, stripAlpha(trackColor), colorAlpha(trackColor), false, null, ROUND, ROUND);
+		graphics.moveTo(startX, centerY);
+		graphics.lineTo(endX, centerY);
+
+		bitmap.draw(shape);
+		linearTrack.dirty = true;
 	}
 
 	function drawCircularTrack():Void
@@ -291,13 +359,40 @@ class MaterialWavyProgressIndicator extends FlxSpriteGroup
 		bitmap.fillRect(bitmap.rect, FlxColor.TRANSPARENT);
 
 		var size = circularSize();
-		var thickness = circularThickness();
-		var radius = (size - thickness) * 0.5 - 1;
+		var thickness = circularThickness() * circularTrackThicknessScale;
+		var radius = (size - circularThickness()) * 0.5 - 1 + circularTrackRadiusOffset;
+		radius = Math.max(1, radius);
 		var center = size * 0.5;
 
 		var shape = new Shape();
-		shape.graphics.lineStyle(thickness, stripAlpha(trackColor), colorAlpha(trackColor), false, null, ROUND, ROUND);
-		shape.graphics.drawCircle(center, center, radius);
+		var graphics = shape.graphics;
+		graphics.lineStyle(thickness, stripAlpha(trackColor), colorAlpha(trackColor), false, null, ROUND, ROUND);
+
+		// Determinate circular: draw only the remaining (unfilled) arc, not a full background ring.
+		if (!indeterminate)
+		{
+			var startAngle = -Math.PI / 2;
+			var waveSweep = TAU * value;
+			var gap = FlxMath.bound(circularEdgeGap, 0, Math.PI / 4);
+			var trackStart = startAngle + waveSweep + gap;
+			var trackSweep = TAU - waveSweep - (gap * 2);
+			if (trackSweep > 0.01)
+			{
+				var steps = Std.int(Math.max(36, Math.ceil((trackSweep * radius) / 3.0)));
+				for (i in 0...steps + 1)
+				{
+					var t = i / steps;
+					var angle = trackStart + trackSweep * t;
+					var px = center + Math.cos(angle) * radius;
+					var py = center + Math.sin(angle) * radius;
+					if (i == 0) graphics.moveTo(px, py); else graphics.lineTo(px, py);
+				}
+			}
+		}
+		else
+		{
+			graphics.drawCircle(center, center, radius);
+		}
 
 		bitmap.draw(shape);
 		circularTrack.dirty = true;
@@ -306,6 +401,7 @@ class MaterialWavyProgressIndicator extends FlxSpriteGroup
 	function drawCircularWave():Void
 	{
 		if (circularWave == null) return;
+		drawCircularTrack();
 
 		var bitmap = circularWave.pixels;
 		bitmap.fillRect(bitmap.rect, FlxColor.TRANSPARENT);
@@ -324,6 +420,22 @@ class MaterialWavyProgressIndicator extends FlxSpriteGroup
 			startAngle += sweepPhase * 2.4;
 			var pulse = (Math.sin(sweepPhase * 1.9) + 1) * 0.5;
 			sweep = TAU * FlxMath.lerp(0.18, 0.34, pulse);
+		}
+		else
+		{
+			var gap = FlxMath.bound(circularEdgeGap, 0, Math.PI / 4);
+			if (gap > 0)
+			{
+				if (sweep > gap * 2)
+				{
+					startAngle += gap;
+					sweep -= gap * 2;
+				}
+				else
+				{
+					sweep = 0;
+				}
+			}
 		}
 
 		if (sweep <= 0.01)

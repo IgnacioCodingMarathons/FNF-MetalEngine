@@ -32,15 +32,9 @@ import states.TitleState;
 	#if windows
 	public var fullscreenMode:String = 'Borderless'; // 'Borderless', 'Borderless Fix', 'Exclusive'
 	#end
-	
-	// Accuracy/Rating system
 	public var accuracySystem:String = 'Wife3'; // 'Wife3', 'Psych', 'Simple', 'osu!mania', 'DJMAX', 'ITG'
-	
-	// Combo Break Settings
 	public var badShitBreakCombo:Bool = false; // When true, Bad and Shit will break the combo
-
 	public var systemScoreMultiplier:String = 'Psych'; // 'Psych', 'Codename'
-	
 	public var downScroll:Bool = false;
 	public var middleScroll:Bool = false;
 	public var opponentStrums:Bool = true;
@@ -78,27 +72,16 @@ import states.TitleState;
 	public var showStateInFPS:Bool = true;
 	public var showEndCountdown:Bool = false; // Enables/disables the end countdown
 	public var endCountdownSeconds:Int = 10;  // End countdown seconds (10-30)
-	
-	// ========== Modchart Config Options ==========
-	// Camera & 3D Settings
 	public var camera3dEnabled:Bool = true; // Enables 3D camera transformations
 	public var zScale:Float = 1.0; // Z-axis depth scale (0.1-5.0)
-	
-	// Arrow Path Settings
 	public var renderArrowPaths:Bool = false; // Renders arrow trajectory lines (performance intensive)
 	public var styledArrowPaths:Bool = false; // Applies colors/transparency to arrow paths
 	public var arrowPathBoundary:Int = 300; // Pixels beyond screen to render paths (0-1000)
-	
-	// Hold Note Settings
 	public var optimizeHolds:Bool = false; // Optimizes hold rendering (not recommended for complex modcharts)
 	public var holdsBehindStrum:Bool = false; // Renders sustains behind strum line
 	public var holdEndScale:Float = 1.0; // Scale multiplier for hold note endings (0.1-3.0)
-	
-	// Hold Cache Settings (Auto-managed by AndroidOptimizer)
 	public var holdCacheEnabled:Bool = true; // Hold graphics cache for performance
 	public var holdAlphaDivisions:Int = 20; // Pre-calculated alpha variants (10-30)
-	
-	// Modifier Settings
 	public var columnSpecificModifiers:Bool = true; // Enables per-lane modifier calculations
 	
 	public var noteOffset:Int = 0;
@@ -199,15 +182,10 @@ import states.TitleState;
 	public var gameJoltToken:String = '';
 	public var gameJoltGameId:String = '';
 	public var gameJoltPrivateKey:String = '';
-	
-	// New Gameplay Features (Issue #72)
 	public var pauseCountdown:Bool = false; // Enable countdown when resuming from pause
 	public var heyIntro:Bool = false; // Boyfriend and Girlfriend do Hey! animation on countdown Go!
 	public var breakTimer:Bool = false; // Show timer when next notes are approaching
 	public var disableLargeChartGC:Bool = false; // Skip manual GC pass for large charts to reduce loading stutters
-	
-	// Compatibility Settings
-	public var useSScriptCompat:Bool = false; // Use SScript instead of hscript-iris for Psych 0.7.3 mods compatibility
 	public var legacyMemoryManagement:Bool = false; // Use Psych 0.7.3 memory management style (no GPU disposal)
 	public var legacyFileSystemAccess:Bool = false; // Allow direct FileSystem.readDirectory access like in Psych 0.7.3
 	public var legacyShaderInit:Bool = false; // Use Psych 0.7.3 shader initialization (glslVersion parameter, direct FlxRuntimeShader)

@@ -6,6 +6,7 @@ import debug.TraceButton;
 import debug.DebugButton;
 import backend.ClientPrefs;
 import backend.Screenshot;
+import objects.MaterialVolumeTray;
 import flixel.FlxGame;
 import flixel.FlxState;
 import openfl.Lib;
@@ -20,6 +21,7 @@ import crowplexus.iris.Iris;
 import psychlua.HScript.HScriptInfos;
 #end
 import openfl.events.KeyboardEvent;
+import flixel.util.FlxTimer;
 
 #if (linux || mac)
 import lime.graphics.Image;
@@ -51,6 +53,7 @@ class Main extends Sprite
 	public static var traceDisplay:TraceDisplay;
 	public static var traceButton:TraceButton;
 	public static var debugButton:DebugButton;
+	public static var materialVolumeTray:MaterialVolumeTray;
 
 	public static final platform:String = #if mobile "Phones" #else "PCs" #end;
 	public static var watermarkSprite:Sprite = null;
@@ -60,6 +63,10 @@ class Main extends Sprite
 	public static var focused:Bool = true;
 	var oldVol:Float = 1.0;
 	var newVol:Float = 0.2;
+	var focusStateTimer:FlxTimer;
+	var windowHasFocus:Bool = true;
+	var restoringFocusVolume:Bool = false;
+	var lastReportedVolume:Float = 1.0;
 	public static var focusMusicTween:FlxTween;
 
 	// You can pretty much ignore everything from here on - your code should go in your states.
@@ -179,6 +186,7 @@ class Main extends Sprite
 		#end
 		
 		addChild(new FlxGame(game.width, game.height, game.initialState, game.framerate, game.framerate, game.skipSplash, game.startFullscreen));
+		initializeMaterialVolumeTray();
 		backend.RenderInterpolation.install();
 
 		fpsVar = new FPSCounter(10, 3, 0xFFFFFF);
@@ -248,7 +256,8 @@ class Main extends Sprite
 		#end
 
 		// shader coords fix
-		FlxG.signals.gameResized.add(function (w, h) {
+		var resizeDebounceTimer:FlxTimer = null;
+		function handleGameResized():Void {
 			ClientPrefs.applyFramePacing();
 			backend.RenderInterpolation.syncAllCameras();
 
@@ -256,7 +265,6 @@ class Main extends Sprite
 			if(fpsVar != null) {
 				var marginX = 10;
 				var marginY = 3;
-				// No scaling, only reposition.
 				fpsVar.positionFPS(marginX, marginY, 1.0);
 			}
 			
@@ -273,18 +281,73 @@ class Main extends Sprite
 			// Only reposition the watermark, no scaling.
 			positionWatermark();
 			
-		     if (FlxG.cameras != null) {
-			   for (cam in FlxG.cameras.list) {
-				if (cam != null && cam.filters != null)
-					resetSpriteCache(cam.flashSprite);
-			   }
+			if (FlxG.cameras != null) {
+				for (cam in FlxG.cameras.list) {
+					if (cam != null && cam.filters != null)
+						resetSpriteCache(cam.flashSprite);
+				}
 			}
 
 			if (FlxG.game != null)
-			resetSpriteCache(FlxG.game);
+				resetSpriteCache(FlxG.game);
+		}
+
+		FlxG.signals.gameResized.add(function (w, h) {
+			if(resizeDebounceTimer == null) {
+				resizeDebounceTimer = new FlxTimer();
+			}
+			resizeDebounceTimer.start(0.05, function(_) {
+				handleGameResized();
+			});
 		});
 
 		setupGame();
+	}
+
+	function initializeMaterialVolumeTray():Void
+	{
+		if (FlxG.game == null || Lib.current == null || Lib.current.stage == null)
+			return;
+
+		FlxG.sound.soundTrayEnabled = false;
+		lastReportedVolume = FlxG.sound.muted ? 0 : FlxG.sound.volume;
+
+		if (materialVolumeTray == null)
+			materialVolumeTray = new MaterialVolumeTray();
+
+		if (materialVolumeTray.parent != Lib.current.stage)
+		{
+			if (materialVolumeTray.parent != null)
+				materialVolumeTray.parent.removeChild(materialVolumeTray);
+			Lib.current.stage.addChild(materialVolumeTray);
+		}
+		Lib.current.stage.setChildIndex(materialVolumeTray, Lib.current.stage.numChildren - 1);
+
+		var self = this;
+		FlxG.sound.volumeHandler = function(volume:Float)
+		{
+			self.onVolumeChanged(volume);
+		};
+	}
+
+	function onVolumeChanged(volume:Float):Void
+	{
+		if (materialVolumeTray == null)
+			return;
+
+		lastReportedVolume = volume;
+		materialVolumeTray.showVolume(volume);
+	}
+
+	function preserveSavedMasterVolume(targetVolume:Float, ?flush:Bool = false):Void
+	{
+		if (FlxG.save == null)
+			return;
+
+		FlxG.save.data.volume = targetVolume;
+		FlxG.save.data.mute = FlxG.sound.muted;
+		if (flush)
+			FlxG.save.flush();
 	}
 
 	static function resetSpriteCache(sprite:Sprite):Void {

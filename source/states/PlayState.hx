@@ -11,6 +11,7 @@ import flixel.FlxBasic;
 import flixel.FlxObject;
 import flixel.FlxSubState;
 import flixel.math.FlxRect;
+import flixel.math.FlxMath;
 import flixel.util.FlxSort;
 import flixel.util.FlxStringUtil;
 import flixel.util.FlxSave;
@@ -39,6 +40,9 @@ import openfl.filters.ShaderFilter;
 import shaders.ErrorHandledShader;
 import flixel.util.FlxGradient;
 import openfl.geom.Rectangle;
+import backend.ui.md3.MaterialWavyProgressIndicator;
+import backend.ui.md3.MaterialWavyProgressIndicator.WavyProgressType;
+import options.OptionsMenuTheme;
 
 import objects.VideoSprite;
 import objects.JudCounter;
@@ -46,9 +50,6 @@ import objects.Note.EventNote;
 import objects.*;
 import states.stages.*;
 import states.stages.objects.*;
-import lenin.PreloadedChartNote;
-import lenin.HeavyChartManager;
-import lenin.NoteSpawner;
 
 #if windows
 import lenin.slushithings.windows.WindowsAPI;
@@ -234,18 +235,6 @@ class PlayState extends MusicBeatState
 	public var unspawnNotes:Array<Note> = [];
 	public var eventNotes:Array<EventNote> = [];
 
-	// Heavy Charts System
-	public var useHeavyCharts:Bool = false;
-	public var preloadedNotes:Array<PreloadedChartNote> = [];
-	public var notesAddedCount:Int = 0;
-	public var noteLimitCount:Int = 0; // Cuenta de notas activas en memoria
-	public var dynamicNoteLimit:Int = 200; // Límite dinámico basado en RAM
-
-	// Rendering optimization variables (from JS Engine)
-	public var amountOfRenderedNotes:Float = 0; // Tracks total rendering cost this frame
-	public var maxRenderedNotes:Float = 0; // Peak rendering cost
-	public var maxNotesOnScreen:Int = 0; // For limiting visible notes (set to 0 = unlimited)
-
 	public var camFollow:FlxObject;
 	private static var prevCamFollow:FlxObject;
 
@@ -266,6 +255,11 @@ class PlayState extends MusicBeatState
 
 	public var healthBar:Bar;
 	public var timeBar:Bar;
+	public var timeProgressIndicator:MaterialWavyProgressIndicator;
+	var timeBarBaseX:Float = 0;
+	var timeBarBaseY:Float = 0;
+	var timeBarBaseScaleX:Float = 0;
+	var timeBarBaseVisible:Bool = false;
 	var songPercent:Float = 0;
 
 	public var ratingsData:Array<Rating> = Rating.loadDefault();
@@ -363,6 +357,22 @@ class PlayState extends MusicBeatState
 	var endCountdownText:FlxText = null;
 	var lastEndCountdown:Int = -1;
 	var lastJudName:String = "None";
+	var breakTimerText:FlxText = null;
+	var breakTimerIndicator:MaterialWavyProgressIndicator = null;
+	var breakTimerNoteTimes:Array<Float> = [];
+	var breakTimerNoteIndex:Int = 0;
+	var breakTimerUpdateAccum:Float = 0;
+	var breakTimerNextNoteTime:Float = -1;
+	var breakTimerLastNoteTime:Float = -1;
+	var lastBreakTimerValue:Int = -1;
+	static inline var BREAK_TIMER_MIN_GAP:Float = 2000;
+	static inline var BREAK_TIMER_TEXT_SIZE:Int = 28;
+	static inline var BREAK_TIMER_INDICATOR_SIZE:Float = 64;
+
+	inline function isWavyTimeBarEnabled():Bool
+	{
+		return ClientPrefs.data.useWavyTimeBar;
+	}
 	
 	#if windows
 	// Window border color tween system (Slushi Engine method)
@@ -545,9 +555,7 @@ class PlayState extends MusicBeatState
 		noDropPenalty = ClientPrefs.getGameplaySetting('nodroppenalty');
 		cpuControlled = ClientPrefs.getGameplaySetting('botplay');
 		guitarHeroSustains = ClientPrefs.data.guitarHeroSustains;
-		showRating = ClientPrefs.data.showRating;
 		showCombo = ClientPrefs.data.showCombo;
-		showComboNum = ClientPrefs.data.showComboNum;
 
 		if (ClientPrefs.data.shadedTimeBar) {
 			reloadGradientColors();
@@ -808,8 +816,36 @@ class PlayState extends MusicBeatState
 		timeBar.alpha = 1; // Alpha siempre visible
 		timeBar.scale.x = 0; // Inicia con escala X en 0
 		timeBar.visible = showTime;
-		uiGroup.add(timeBar);
+		timeBarBaseX = timeBar.x + timeBar.barOffset.x;
+		timeBarBaseY = timeBar.y + timeBar.barOffset.y;
+		timeBarBaseScaleX = timeBar.scale.x;
+		timeBarBaseVisible = timeBar.visible;
+
+		timeProgressIndicator = new MaterialWavyProgressIndicator(0, 0, WavyProgressType.LINEAR, timeBar.barWidth);
+		timeProgressIndicator.scrollFactor.set();
+		timeProgressIndicator.alpha = timeBar.alpha;
+		timeProgressIndicator.visible = showTime;
+		timeProgressIndicator.scale.x = timeBarBaseScaleX;
+		timeProgressIndicator.linearHeightScale = 1.8;
+		timeProgressIndicator.linearGapSize = 9;
+		timeProgressIndicator.linearShowStopDot = true;
+		timeProgressIndicator.linearStopDotSize = 6;
+		timeProgressIndicator.linearWaveThicknessScale = 1.0;
+		timeProgressIndicator.linearTrackThicknessScale = 1.0;
+		timeProgressIndicator.x = timeBarBaseX;
+		timeProgressIndicator.y = timeBarBaseY;
+
+		if (isWavyTimeBarEnabled())
+		{
+			timeBar.visible = false;
+		}
+		else
+		{
+			uiGroup.add(timeBar);
+		}
+		uiGroup.add(timeProgressIndicator);
 		uiGroup.add(timeTxt);
+		refreshTimeBarVisualStyle();
 
 		noteGroup.add(strumLineNotes);
 
@@ -820,6 +856,29 @@ class PlayState extends MusicBeatState
 		}
 
 		generateSong();
+		cacheBreakTimerNotes();
+
+		if (ClientPrefs.data.breakTimer)
+		{
+			breakTimerIndicator = new MaterialWavyProgressIndicator(0, 0, WavyProgressType.CIRCULAR, BREAK_TIMER_INDICATOR_SIZE);
+			breakTimerIndicator.cameras = [camHUD];
+			breakTimerIndicator.scrollFactor.set();
+			breakTimerIndicator.circularEdgeGap = 0.12;
+			breakTimerIndicator.circularTrackRadiusOffset = 0;
+			breakTimerIndicator.circularTrackThicknessScale = 1;
+			breakTimerIndicator.visible = false;
+			breakTimerIndicator.value = 0;
+			add(breakTimerIndicator);
+
+			breakTimerText = new FlxText(0, 0, 0, "", BREAK_TIMER_TEXT_SIZE);
+			breakTimerText.setFormat(Paths.font("vcr.ttf"), BREAK_TIMER_TEXT_SIZE, FlxColor.WHITE, CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+			breakTimerText.cameras = [camHUD];
+			breakTimerText.scrollFactor.set();
+			breakTimerText.borderSize = 3;
+			breakTimerText.visible = false;
+			add(breakTimerText);
+			refreshBreakTimerVisualStyle();
+		}
 
 		noteGroup.add(grpNoteSplashes);
 		noteGroup.add(grpHoldSplashes);
@@ -1685,6 +1744,21 @@ class PlayState extends MusicBeatState
 						countdownGo = createCountdownSprite(introAlts[2], antialias);
 						FlxG.sound.play(Paths.sound('introGo' + introSoundsSuffix), 0.6);
 						tick = GO;
+						if (ClientPrefs.data.heyIntro)
+						{
+							if (boyfriend != null && boyfriend.hasAnimation('hey'))
+							{
+								boyfriend.playAnim('hey', true);
+								boyfriend.specialAnim = true;
+								boyfriend.heyTimer = 0.6;
+							}
+							if (gf != null && gf.hasAnimation('cheer'))
+							{
+								gf.playAnim('cheer', true);
+								gf.specialAnim = true;
+								gf.heyTimer = 0.6;
+							}
+						}
 					case 4:
 						tick = START;
 				}
@@ -1740,6 +1814,175 @@ class PlayState extends MusicBeatState
 			}
 		});
 		return spr;
+	}
+
+	public function resumeWithCountdown(?pauseSubState:PauseSubState):Void
+	{
+		var ret:Dynamic = callOnScripts('onResumeCountdown', null, true);
+		if (ret != LuaUtils.Function_Stop)
+		{
+			var swagCounter:Int = 0;
+			new FlxTimer().start(Conductor.crochet / 1000 / playbackRate, function(tmr:FlxTimer)
+			{
+				var introAssets:Map<String, Array<String>> = new Map<String, Array<String>>();
+				var introImagesArray:Array<String> = switch (stageUI)
+				{
+					case "pixel": ['pixelUI/get-pixel', 'pixelUI/ready-pixel', 'pixelUI/set-pixel', 'pixelUI/date-pixel'];
+					case "normal": ["get", "ready", "set", "go"];
+					default: ['${uiPrefix}UI/get${uiPostfix}', '${uiPrefix}UI/ready${uiPostfix}', '${uiPrefix}UI/set${uiPostfix}', '${uiPrefix}UI/go${uiPostfix}'];
+				}
+				introAssets.set(stageUI, introImagesArray);
+
+				var introAlts:Array<String> = introAssets.get(stageUI);
+				var antialias:Bool = (ClientPrefs.data.antialiasing && !isPixelStage);
+				var tick:Countdown = THREE;
+
+				switch (swagCounter)
+				{
+					case 0:
+						FlxG.sound.play(Paths.sound('intro3' + introSoundsSuffix), 0.6);
+						tick = THREE;
+					case 1:
+						countdownReady = createCountdownSprite(introAlts[1], antialias);
+						FlxG.sound.play(Paths.sound('intro2' + introSoundsSuffix), 0.6);
+						tick = TWO;
+					case 2:
+						countdownSet = createCountdownSprite(introAlts[2], antialias);
+						FlxG.sound.play(Paths.sound('intro1' + introSoundsSuffix), 0.6);
+						tick = ONE;
+					case 3:
+						countdownGo = createCountdownSprite(introAlts[3], antialias);
+						FlxG.sound.play(Paths.sound('introGo' + introSoundsSuffix), 0.6);
+						tick = GO;
+					case 4:
+						if (pauseSubState != null)
+						{
+							pauseSubState.close();
+						}
+						else
+						{
+							if (FlxG.sound.music != null && !startingSong && canResync) resyncVocals();
+							#if LUA_ALLOWED
+							psychlua.LuaVideo.resumeAll();
+							#end
+							paused = false;
+							resumingWithCountdown = false;
+							callOnScripts('onResume');
+							resetRPC(startTimer != null && startTimer.finished);
+							runSongSyncThread();
+						}
+						callOnScripts('onResumeCountdownFinished');
+						return;
+				}
+
+				stagesFunc(function(stage:BaseStage) stage.countdownTick(tick, swagCounter));
+				callOnLuas('onCountdownTick', [swagCounter]);
+				callOnHScript('onCountdownTick', [tick, swagCounter]);
+				swagCounter += 1;
+			}, 5);
+		}
+		else
+		{
+			if (pauseSubState != null)
+			{
+				pauseSubState.close();
+			}
+			else
+			{
+				if (FlxG.sound.music != null && !startingSong && canResync) resyncVocals();
+				paused = false;
+				resumingWithCountdown = false;
+				callOnScripts('onResume');
+				resetRPC(startTimer != null && startTimer.finished);
+				runSongSyncThread();
+			}
+		}
+	}
+
+	function cacheBreakTimerNotes():Void
+	{
+		breakTimerNoteTimes = [];
+		breakTimerNoteIndex = 0;
+		breakTimerNextNoteTime = -1;
+		breakTimerLastNoteTime = -1;
+		if (unspawnNotes == null) return;
+
+		for (note in unspawnNotes)
+			if (note != null && note.mustPress && !note.isSustainNote)
+				breakTimerNoteTimes.push(note.strumTime);
+
+		breakTimerNoteTimes.sort(function(a:Float, b:Float):Int
+		{
+			return a < b ? -1 : (a > b ? 1 : 0);
+		});
+	}
+
+	function syncBreakTimerNotes(currentTime:Float):Void
+	{
+		if (breakTimerNoteTimes == null || breakTimerNoteTimes.length == 0)
+		{
+			breakTimerNoteIndex = 0;
+			breakTimerLastNoteTime = -1;
+			breakTimerNextNoteTime = -1;
+			return;
+		}
+
+		if (breakTimerLastNoteTime > currentTime)
+		{
+			breakTimerNoteIndex = 0;
+			breakTimerLastNoteTime = -1;
+		}
+
+		while (breakTimerNoteIndex < breakTimerNoteTimes.length && currentTime >= breakTimerNoteTimes[breakTimerNoteIndex])
+		{
+			breakTimerLastNoteTime = breakTimerNoteTimes[breakTimerNoteIndex];
+			breakTimerNoteIndex++;
+		}
+		breakTimerNextNoteTime = breakTimerNoteIndex < breakTimerNoteTimes.length ? breakTimerNoteTimes[breakTimerNoteIndex] : -1;
+	}
+
+	function refreshBreakTimerVisualStyle():Void
+	{
+		if (breakTimerIndicator == null) return;
+
+		// Keep MD3 theme synced with Options prefs so gameplay widgets match menu accent/dark mode.
+		OptionsMenuTheme.syncAccent();
+
+		var trackRgb:Int = OptionsMenuTheme.loadingOverlayTrackColor();
+		var waveRgb:Int = OptionsMenuTheme.loadingOverlayWaveColor();
+		var outlineRgb:Int = OptionsMenuTheme.loadingOverlayOutlineColor();
+		var trackAlpha:Int = Std.int(0.22 * 255); // Same visual intensity as GlobalLoadingOverlay.
+		var trackColor:Int = (trackAlpha << 24) | (trackRgb & 0x00FFFFFF);
+
+		breakTimerIndicator.resetThemeColors();
+		breakTimerIndicator.setTrackColor(trackColor);
+		breakTimerIndicator.setWaveColor(waveRgb);
+
+		if (breakTimerText != null)
+		{
+			breakTimerText.color = waveRgb;
+			breakTimerText.borderColor = outlineRgb;
+		}
+	}
+
+	inline function getRenderedStrumCenterX(strum:StrumNote):Float
+	{
+		#if (MODCHARTS_NOTITG_ALLOWED && LUA_ALLOWED)
+		final renderedPoint = LuaModchart.getRenderedStrumPosition(strum);
+		if (renderedPoint != null)
+			return renderedPoint.x + Manager.ARROW_SIZEDIV2;
+		#end
+		return strum.x + strum.width / 2;
+	}
+
+	inline function getRenderedStrumTopY(strum:StrumNote):Float
+	{
+		#if (MODCHARTS_NOTITG_ALLOWED && LUA_ALLOWED)
+		final renderedPoint = LuaModchart.getRenderedStrumPosition(strum);
+		if (renderedPoint != null)
+			return renderedPoint.y;
+		#end
+		return strum.y;
 	}
 
 	public function addBehindGF(obj:FlxBasic)
@@ -2063,7 +2306,10 @@ class PlayState extends MusicBeatState
 
 		// Song duration in a float, useful for the time left feature
 		songLength = FlxG.sound.music.length;
-		FlxTween.tween(timeBar.scale, {x: 1}, 0.5, {ease: FlxEase.circOut});
+		if (timeBar != null)
+			FlxTween.tween(timeBar.scale, {x: 1}, 0.5, {ease: FlxEase.circOut});
+		if (timeProgressIndicator != null)
+			FlxTween.tween(timeProgressIndicator.scale, {x: 1}, 0.5, {ease: FlxEase.circOut});
 		FlxTween.tween(versionText, {y: 5}, 0.5, {ease: FlxEase.circOut});
 		
 		// Después de 5 segundos, cambiar el alpha a 0.6
@@ -2314,21 +2560,6 @@ class PlayState extends MusicBeatState
 
 		unspawnNotes.sort(sortByTime);
 		
-		// Heavy Charts Mode: Convertir notas a estructura ligera
-		useHeavyCharts = HeavyChartManager.shouldUseHeavyCharts();
-		if (useHeavyCharts && unspawnNotes.length > 0)
-		{
-			preloadedNotes = NoteSpawner.convertNotesToPreloaded(unspawnNotes);
-			unspawnNotes = [];
-			// Calcular el límite dinámico de notas basado en RAM disponible
-			dynamicNoteLimit = HeavyChartManager.getDynamicNoteLimit();
-			HeavyChartManager.logChartInfo(songData.song, preloadedNotes.length, true);
-		}
-		else
-		{
-			HeavyChartManager.logChartInfo(songData.song, unspawnNotes.length, false);
-		}
-		
 		generatedMusic = true;
 		
 		totalNotes = 0;
@@ -2496,16 +2727,28 @@ class PlayState extends MusicBeatState
 	{
 		super.closeSubState();
 		
-		if (videoCutscene != null) videoCutscene.resume();
+		if (videoCutscene != null && !resumingWithCountdown) videoCutscene.resume();
 		stagesFunc(function(stage:BaseStage) stage.closeSubState());
 		if (paused)
 		{
+			if (ClientPrefs.data.pauseCountdown)
+			{
+				resumingWithCountdown = true;
+			}
+
+			FlxTimer.globalManager.forEach(function(tmr:FlxTimer) if(!tmr.finished) tmr.active = true);
+			FlxTween.globalManager.forEach(function(twn:FlxTween) if(!twn.finished) twn.active = true);
+
+			if (resumingWithCountdown)
+			{
+				resumeWithCountdown();
+				return;
+			}
+
 			if (FlxG.sound.music != null && !startingSong && canResync)
 			{
 				resyncVocals();
 			}
-			FlxTimer.globalManager.forEach(function(tmr:FlxTimer) if(!tmr.finished) tmr.active = true);
-			FlxTween.globalManager.forEach(function(twn:FlxTween) if(!twn.finished) twn.active = true);
 
 			paused = false;
 			
@@ -2603,6 +2846,7 @@ class PlayState extends MusicBeatState
 
 	// ← NUEVAS FUNCIONES DE OPTIMIZACIÓN
 	public var paused:Bool = false;
+	public var resumingWithCountdown:Bool = false;
 	public var canReset:Bool = true;
 	var startedCountdown:Bool = false;
 	var canPause:Bool = true;
@@ -2707,8 +2951,82 @@ class PlayState extends MusicBeatState
 		}
 		else if (!paused && updateTime)
 		{
+			if (ClientPrefs.data.breakTimer && breakTimerText != null && breakTimerIndicator != null && playerStrums != null && playerStrums.length > 0)
+			{
+				var currentTime:Float = Conductor.songPosition;
+				breakTimerUpdateAccum += elapsed;
+				if (breakTimerUpdateAccum >= 0.1)
+				{
+					breakTimerUpdateAccum = 0;
+					syncBreakTimerNotes(currentTime);
+				}
+
+				var gapStart:Float = breakTimerLastNoteTime >= 0 ? breakTimerLastNoteTime : 0;
+				var totalGap:Float = breakTimerNextNoteTime > 0 ? (breakTimerNextNoteTime - gapStart) : -1;
+				var timeUntilNext:Float = (breakTimerNextNoteTime - currentTime) / 1000;
+				if (!startingSong && breakTimerNextNoteTime > 0 && totalGap >= BREAK_TIMER_MIN_GAP && timeUntilNext > 0)
+				{
+					var displayValue:Int = Math.ceil(timeUntilNext);
+					if (displayValue >= 1)
+					{
+						breakTimerText.visible = true;
+						breakTimerIndicator.visible = true;
+						breakTimerText.text = Std.string(displayValue);
+						var countdownDuration = Math.max(0.001, totalGap / 1000);
+						breakTimerIndicator.value = FlxMath.bound(timeUntilNext / countdownDuration, 0, 1);
+
+						var centerX:Float = 0;
+						var centerY:Float = 0;
+						for (strum in playerStrums)
+						{
+							if (strum != null)
+							{
+								centerX += getRenderedStrumCenterX(strum);
+								centerY += getRenderedStrumTopY(strum);
+							}
+						}
+						centerX /= playerStrums.length;
+						centerY /= playerStrums.length;
+
+						var indicatorY = centerY + (ClientPrefs.data.downScroll ? -164 : 100);
+						var indicatorSize = breakTimerIndicator.getIndicatorHeight();
+						breakTimerIndicator.x = centerX - indicatorSize / 2;
+						breakTimerIndicator.y = indicatorY;
+						breakTimerText.x = centerX - breakTimerText.width / 2;
+						breakTimerText.y = indicatorY + Math.max(0, (indicatorSize - breakTimerText.height) * 0.5) - 3;
+
+						if (lastBreakTimerValue != displayValue)
+						{
+							breakTimerText.scale.set(1.5, 1.5);
+							breakTimerIndicator.scale.set(1.1, 1.1);
+							FlxTween.tween(breakTimerText.scale, {x: 1, y: 1}, 0.2, {ease: FlxEase.circOut});
+							FlxTween.tween(breakTimerIndicator.scale, {x: 1, y: 1}, 0.2, {ease: FlxEase.circOut});
+							lastBreakTimerValue = displayValue;
+						}
+					}
+					else
+					{
+						breakTimerText.visible = false;
+						breakTimerIndicator.visible = false;
+						breakTimerIndicator.value = 0;
+						breakTimerIndicator.scale.set(1, 1);
+						lastBreakTimerValue = -1;
+					}
+				}
+				else
+				{
+					breakTimerText.visible = false;
+					breakTimerIndicator.visible = false;
+					breakTimerIndicator.value = 0;
+					breakTimerIndicator.scale.set(1, 1);
+					lastBreakTimerValue = -1;
+				}
+			}
+
 			var curTime:Float = Math.max(0, Conductor.songPosition - ClientPrefs.data.noteOffset);
 			songPercent = (curTime / songLength);
+			if (timeProgressIndicator != null)
+				timeProgressIndicator.value = FlxMath.bound(songPercent, 0, 1);
 
 			var songCalc:Float = (songLength - curTime);
 			if(ClientPrefs.data.timeBarType == 'Time Elapsed') songCalc = curTime;
@@ -2839,19 +3157,12 @@ class PlayState extends MusicBeatState
 				{
 					if(startedCountdown)
 					{
-						// Reset rendering counter each frame (like JS Engine)
-						amountOfRenderedNotes = 0;
-						
 						var fakeCrochet:Float = (60 / SONG.bpm) * 1000;
 						var i:Int = 0;
 						while(i < notes.length)
 						{
 							var daNote:Note = notes.members[i];
 							if(daNote == null) continue;
-
-							// Track rendering cost (JS Engine optimization)
-							amountOfRenderedNotes += daNote.noteDensity;
-							if (maxRenderedNotes < amountOfRenderedNotes) maxRenderedNotes = amountOfRenderedNotes;
 
 							var strumGroup:FlxTypedGroup<StrumNote> = playerStrums;
 							if(!daNote.mustPress) strumGroup = opponentStrums;
@@ -2899,9 +3210,6 @@ class PlayState extends MusicBeatState
 					}
 				}
 			}
-			// Heavy Charts Mode: Spawnear notas dinámicamente
-			if (useHeavyCharts && !paused && startedCountdown)
-				spawnHeavyNotes();
 
 			checkEventNote();
 		}
@@ -2987,6 +3295,44 @@ class PlayState extends MusicBeatState
 
 			timeBar.leftBar.dirty = true;
 		}
+
+		if (timeProgressIndicator != null && bfColor != null && dadColor != null)
+		{
+			if (ClientPrefs.data.shadedTimeBar)
+				timeProgressIndicator.setWaveGradient(bfColor, dadColor);
+			else
+				timeProgressIndicator.setWaveColor(FlxColor.WHITE);
+		}
+	}
+
+	function refreshTimeBarVisualStyle():Void
+	{
+		if (timeProgressIndicator == null) return;
+
+		if (timeBar != null)
+		{
+			timeBarBaseX = timeBar.x + timeBar.barOffset.x;
+			timeBarBaseY = timeBar.y + timeBar.barOffset.y;
+			timeBarBaseScaleX = timeBar.scale.x;
+			if (!isWavyTimeBarEnabled())
+				timeBarBaseVisible = timeBar.visible;
+		}
+
+		timeProgressIndicator.x = timeBarBaseX;
+		var classicHeight:Float = (timeBar != null ? timeBar.barHeight : 8);
+		var waveHeight:Float = timeProgressIndicator.getIndicatorHeight();
+		timeProgressIndicator.y = timeBarBaseY - Math.max(0, (waveHeight - classicHeight) * 0.5);
+		timeProgressIndicator.visible = updateTime && isWavyTimeBarEnabled();
+		timeProgressIndicator.scale.x = timeBarBaseScaleX;
+
+		if (timeBar != null && isWavyTimeBarEnabled())
+		{
+			timeBar.visible = false;
+		}
+		else if (timeBar != null)
+		{
+			timeBar.visible = true;
+		}
 	}
 
 	public function reloadGradientColors() {
@@ -3002,6 +3348,19 @@ class PlayState extends MusicBeatState
 
 		if (ClientPrefs.data.shadedTimeBar)
 			gradientTimebar();
+		else if (timeProgressIndicator != null)
+			timeProgressIndicator.setWaveColor(FlxColor.WHITE);
+
+		if (timeProgressIndicator != null)
+		{
+			if (ClientPrefs.data.shadedTimeBar)
+				timeProgressIndicator.setTrackColor(0x4D000000);
+			else
+				timeProgressIndicator.setTrackColor(0x8C000000);
+		}
+
+		refreshTimeBarVisualStyle();
+		refreshBreakTimerVisualStyle();
 	}
 
 	public function gradientObject(object:FlxSprite, colors:Array<FlxColor>, ?rotate:Int = 90) {
@@ -3611,23 +3970,11 @@ class PlayState extends MusicBeatState
 				if(daNote.strumTime < songLength - Conductor.safeZoneOffset)
 					health -= 0.05 * healthLoss;
 			});
-			
-			// Verificar notas sin spawnear
-			if (useHeavyCharts)
+
+			for (daNote in unspawnNotes)
 			{
-				for (daNote in preloadedNotes)
-				{
-					if(daNote != null && !daNote.wasHit && daNote.strumTime < songLength - Conductor.safeZoneOffset)
-						health -= 0.05 * healthLoss;
-				}
-			}
-			else
-			{
-				for (daNote in unspawnNotes)
-				{
-					if(daNote != null && daNote.strumTime < songLength - Conductor.safeZoneOffset)
-						health -= 0.05 * healthLoss;
-				}
+				if(daNote != null && daNote.strumTime < songLength - Conductor.safeZoneOffset)
+					health -= 0.05 * healthLoss;
 			}
 
 			if(doDeathCheck()) {
@@ -3635,7 +3982,8 @@ class PlayState extends MusicBeatState
 			}
 		}
 
-		timeBar.visible = false;
+		if (timeBar != null) timeBar.visible = false;
+		if (timeProgressIndicator != null) timeProgressIndicator.visible = false;
 		timeTxt.visible = false;
 		canPause = false;
 		endingSong = true;
@@ -3853,11 +4201,6 @@ class PlayState extends MusicBeatState
 			invalidateNote(daNote);
 		}
 		unspawnNotes = [];
-		if (preloadedNotes.length > 0)
-		{
-			HeavyChartManager.cleanupPreloadedNotes(preloadedNotes);
-			preloadedNotes = [];
-		}
 		eventNotes = [];
 	}
 
@@ -5006,6 +5349,16 @@ class PlayState extends MusicBeatState
 			endCountdownText.destroy();
 			endCountdownText = null;
 		}
+		if (breakTimerText != null) {
+			remove(breakTimerText);
+			breakTimerText.destroy();
+			breakTimerText = null;
+		}
+		if (breakTimerIndicator != null) {
+			remove(breakTimerIndicator);
+			breakTimerIndicator.destroy();
+			breakTimerIndicator = null;
+		}
 
 		#if LUA_ALLOWED
 		for (lua in luaArray)
@@ -6096,81 +6449,6 @@ class PlayState extends MusicBeatState
 
 		if (!FlxG.signals.preUpdate.has(checkForResync))
 			FlxG.signals.preUpdate.add(checkForResync);
-	}
-
-	/**
-	 * Spawnea notas dinámicamente para el Heavy Charts Mode
-	 * Solo crea notas visuales cuando están cerca de ser ejecutadas
-	 */
-	function spawnHeavyNotes():Void
-	{
-		if (!useHeavyCharts || preloadedNotes.length == 0 || notesAddedCount >= preloadedNotes.length)
-			return;
-
-		// Tiempo de spawn: notas aparecen 1600ms antes de ser ejecutadas (ajustable con songSpeed)
-		var NOTE_SPAWN_TIME:Float = 1600 / songSpeed;
-		var currentSongPos:Float = Conductor.songPosition;
-
-		// Contar cuántas notas activas hay en memoria ahora (solo una vez antes del loop)
-		var limitNC:Int = notes.countLiving();
-
-		var targetNote:PreloadedChartNote = null;
-		var spawnedCount:Int = 0;
-		var lastNote:Note = null; // Rastrear la última nota para sustains
-		var maxNotesPerFrame:Int = 50; // Limitar a 50 notas por frame para evitar lag spikes
-
-		// Spawnear notas mientras haya espacio en el límite dinámico
-		while (notesAddedCount < preloadedNotes.length && limitNC < dynamicNoteLimit && spawnedCount < maxNotesPerFrame)
-		{
-			targetNote = preloadedNotes[notesAddedCount];
-
-			if (targetNote == null)
-			{
-				notesAddedCount++;
-				continue;
-			}
-
-			// Calcular distancia hasta la nota
-			var timeUntilNote:Float = targetNote.strumTime - currentSongPos;
-
-			// Si la nota está fuera del rango de spawn (aún muy lejana), detener
-			if (timeUntilNote > NOTE_SPAWN_TIME)
-				break;
-
-			// Si la nota ya pasó y no fue ejecutada, marcarla como ejecutada
-			if (timeUntilNote < -200) // 200ms de margen para misses
-			{
-				targetNote.wasHit = true;
-				notesAddedCount++;
-				continue;
-			}
-
-			// Crear la nota visual con la relación parent correcta
-			var newNote:Note = new Note(targetNote.strumTime, targetNote.noteData, lastNote, targetNote.isSustainNote);
-			newNote.gfNote = targetNote.gfNote;
-			newNote.animSuffix = targetNote.animSuffix;
-			newNote.mustPress = targetNote.mustPress;
-			newNote.isOpponentMode = targetNote.isOpponentMode;
-			newNote.sustainLength = targetNote.sustainLength;
-			newNote.noteType = targetNote.noteType;
-			newNote.scrollFactor.set();
-
-			// Si es una sustain note y tiene un parent, agregarlo a la cola del parent
-			if (targetNote.isSustainNote && lastNote != null && lastNote.isSustainNote)
-			{
-				lastNote.tail.push(newNote);
-				newNote.parent = lastNote;
-			}
-
-			// Agregar a la lista de notas activas
-			notes.add(newNote);
-			spawnedCount++;
-			targetNote.wasHit = true; // Marcar como que ya fue spawneada
-			lastNote = newNote; // Actualizar lastNote para la siguiente iteración
-			limitNC++; // Incrementar el contador local
-
-			notesAddedCount++;
-		}
 	}
 }
 

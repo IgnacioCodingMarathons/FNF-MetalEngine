@@ -128,7 +128,7 @@ class MusicBeatState extends BaseMusicBeatState
 		// Skipped for ScriptableState/CustomState (they handle their own scripts),
 		// and when running inside them as sub-instances.
 		#if (HSCRIPT_ALLOWED && sys)
-		var isScriptDriven:Bool = (this is backend.ScriptableState) || (this is backend.CustomState);
+		var isScriptDriven:Bool = (this is backend.ScriptableState) || (this is psychlua.CustomState);
 		if (!isScriptDriven && stateScriptOverridesEnabled())
 			_loadCompanionScript();
 		#end

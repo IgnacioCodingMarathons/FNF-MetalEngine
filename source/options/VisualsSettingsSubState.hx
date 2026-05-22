@@ -117,6 +117,12 @@ class VisualsSettingsSubState extends BaseOptionsMenu
 		    BOOL);
 		addOption(option);
 
+		var option:Option = new Option('Use Wavy Time Bar',
+		    'If checked, uses a Material-style wavy progress indicator instead of the classic time bar.',
+		    'useWavyTimeBar',
+		    BOOL);
+		addOption(option);
+
 		var option:Option = new Option('Flashing Lights',
 			"Uncheck this if you're sensitive to flashing lights!",
 			'flashing',
@@ -272,6 +278,24 @@ class VisualsSettingsSubState extends BaseOptionsMenu
         option.maxValue = 30;
         option.changeValue = 1;
         option.decimals = 0;
+		addOption(option);
+
+		var option:Option = new Option('Pause Countdown',
+			'If checked, resuming from pause plays a countdown similar to the intro countdown.',
+			'pauseCountdown',
+			BOOL);
+		addOption(option);
+
+		var option:Option = new Option('Hey Intro',
+			'If checked, BF and GF automatically do the Hey! animation when the countdown says Go!',
+			'heyIntro',
+			BOOL);
+		addOption(option);
+
+		var option:Option = new Option('Break Timer',
+			'If checked, a timer appears when the next notes are still far away.',
+			'breakTimer',
+			BOOL);
 		addOption(option);
 
 		#if windows

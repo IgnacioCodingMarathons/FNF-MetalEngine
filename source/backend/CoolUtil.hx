@@ -28,12 +28,16 @@ class CoolUtil
 				var remoteVersion:String = data.split('\n')[0].trim();
 				trace('version online: $remoteVersion, your version: $currentVersion');
 				
-				if(remoteVersion != currentVersion) {
-					trace('versions arent matching! please update');
+				var cmp:Int = compareVersions(currentVersion, remoteVersion);
+				if(cmp == -1) {
+					trace('update available! $currentVersion -> $remoteVersion');
 					hasUpdate = true;
 					latestVersion = remoteVersion;
-				} else {
+				} else if(cmp == 0) {
 					trace('versions match! no update needed');
+					hasUpdate = false;
+				} else {
+					trace('local version is newer than remote; skipping update warning');
 					hasUpdate = false;
 				}
 				
@@ -48,6 +52,57 @@ class CoolUtil
 			http.request();
 		}
 		return currentVersion;
+	}
+
+	private static function compareVersions(version1:String, version2:String):Int
+	{
+		if (version1 == null || version2 == null)
+			return 0;
+
+		version1 = version1.trim();
+		version2 = version2.trim();
+		if (version1 == version2)
+			return 0;
+
+		var v1 = parseVersion(version1);
+		var v2 = parseVersion(version2);
+
+		if (v1.major < v2.major) return -1;
+		if (v1.major > v2.major) return 1;
+		if (v1.minor < v2.minor) return -1;
+		if (v1.minor > v2.minor) return 1;
+		if (v1.patch < v2.patch) return -1;
+		if (v1.patch > v2.patch) return 1;
+		return 0;
+	}
+
+	private static function parseVersion(version:String):{major:Int, minor:Int, patch:Int}
+	{
+		var cleaned = version.split('-')[0];
+		cleaned = cleaned.split('+')[0];
+		cleaned = normalizeDisplaySuffix(cleaned);
+		var parts = cleaned.split('.');
+
+		inline function toIntOr0(v:String):Int
+		{
+			var parsed:Null<Int> = Std.parseInt(v);
+			return parsed == null ? 0 : parsed;
+		}
+
+		var major:Int = parts.length > 0 ? toIntOr0(parts[0]) : 0;
+		var minor:Int = parts.length > 1 ? toIntOr0(parts[1]) : 0;
+		var patch:Int = parts.length > 2 ? toIntOr0(parts[2]) : 0;
+		return {major: major, minor: minor, patch: patch};
+	}
+
+	private static function normalizeDisplaySuffix(version:String):String
+	{
+		if (version == null) return "";
+		var trimmed = version.trim();
+		var regex:EReg = ~/\s*\([^\)]*\)\s*$/;
+		if (regex.match(trimmed))
+			return regex.matchedLeft().trim();
+		return trimmed;
 	}
 	inline public static function quantize(f:Float, snap:Float){
 		// changed so this actually works lol

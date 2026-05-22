@@ -4,6 +4,7 @@ import Type.ValueType;
 import haxe.Constraints;
 
 import substates.GameOverSubstate;
+import objects.StrumNote;
 
 //
 // Functions that use a high amount of Reflections, which are somewhat CPU intensive
@@ -145,7 +146,7 @@ class ReflectionFunctions
 			LuaUtils.setVarInArray(myClass, variable, allowInstances ? parseInstances(value) : value, allowMaps);
 			return value;
 		});
-		Lua_helper.add_callback(lua, "getPropertyFromGroup", function(group:String, index:Int, variable:Dynamic, ?allowMaps:Bool = false) {
+		Lua_helper.add_callback(lua, "getPropertyFromGroup", function(group:String, index:Int, variable:Dynamic, ?allowMaps:Bool = false):Dynamic {
 			var split:Array<String> = group.split('.');
 			var realObject:Dynamic = null;
 			if(split.length > 1)
@@ -171,7 +172,23 @@ class ReflectionFunctions
 						FunkinLua.luaTrace('getPropertyFromGroup: Object #$index from group: $group doesn\'t exist!', false, false, FlxColor.RED);
 
 					default: //Is Group
-						var result:Dynamic = LuaUtils.getGroupStuff(realObject.members[index], variable, allowMaps);
+						var member:Dynamic = realObject.members[index];
+						#if (MODCHARTS_NOTITG_ALLOWED && LUA_ALLOWED)
+						// When NotITG modchart manager is active, expose rendered strum x/y so Lua scripts
+						// using getPropertyFromGroup('playerStrums'...) can track the real visual position.
+						if (member != null && Std.isOfType(member, StrumNote) && Std.isOfType(variable, String))
+						{
+							var propName:String = cast variable;
+							if (propName == 'x' || propName == 'y')
+							{
+								var renderedPoint = LuaModchart.getRenderedStrumPosition(cast member);
+								if (renderedPoint != null)
+									return propName == 'x' ? renderedPoint.x : renderedPoint.y;
+							}
+						}
+						#end
+
+						var result:Dynamic = LuaUtils.getGroupStuff(member, variable, allowMaps);
 						return result;
 				}
 			}

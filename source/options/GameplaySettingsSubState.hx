@@ -57,13 +57,6 @@ class GameplaySettingsSubState extends BaseOptionsMenu
 			BOOL);
 		addOption(option);
 
-		var option:Option = new Option('Disable Hold Animations',
-			"If checked, hold notes will not trigger character animations,\nallowing for smoother gameplay with sustain-heavy charts.",
-			'disableHoldAnimations',
-			BOOL);
-		addOption(option);
-		option.onChange = onChangeHoldAnimations;
-
 		#if mobile
 		var option:Option = new Option('Game Over Vibration',
 			"If checked, your device will vibrate at game over.",
@@ -184,13 +177,6 @@ class GameplaySettingsSubState extends BaseOptionsMenu
 			['Psych', 'Codename']); // No V-Slice here :frowning_face:
 		addOption(option);
 
-		var option:Option = new Option('Heavy Charts Mode',
-			"If checked, enables the Heavy Charts system for better performance\nwith charts that have many notes (1000+).",
-			'heavyCharts',
-			BOOL);
-		addOption(option);
-		option.onChange = onChangeHeavyCharts;
-
 		super();
 	}
 
@@ -225,15 +211,5 @@ class GameplaySettingsSubState extends BaseOptionsMenu
 	{
 		if(ClientPrefs.data.gameOverVibration)
 			lime.ui.Haptic.vibrate(0, 500);
-	}
-
-	function onChangeHeavyCharts()
-	{
-		trace('Heavy Charts Mode: ${ClientPrefs.data.heavyCharts ? "ENABLED" : "DISABLED"}');
-	}
-
-	function onChangeHoldAnimations()
-	{
-		trace('Hold Animations: ${ClientPrefs.data.disableHoldAnimations ? "DISABLED" : "ENABLED"}');
 	}
 }
