@@ -9,12 +9,23 @@ import objects.HealthIcon;
 import objects.MusicPlayer;
 
 import options.GameplayChangersSubstate;
+import options.OptionsMenuTheme;
 import substates.ResetScoreSubState;
+import backend.ui.md3.MD3ShapeTools;
 
 import flixel.math.FlxMath;
 import flixel.util.FlxDestroyUtil;
 
 import openfl.utils.Assets;
+
+#if funkin.vis
+import funkin.vis.dsp.SpectralAnalyzer;
+#end
+
+#if (target.threaded && sys)
+import sys.thread.Mutex;
+import backend.ThreadUtil;
+#end
 
 #if MODS_ALLOWED
 import sys.FileSystem;
@@ -32,6 +43,7 @@ class FreeplayState extends MusicBeatState
 	public var songs:Array<SongMetadata> = [];
 
 	var selector:FlxText;
+	var pendingSong:String = null;
 	public static var curSelected:Int = 0;
 	var lerpSelected:Float = 0;
 	var curDifficulty:Int = -1;
@@ -68,6 +80,7 @@ class FreeplayState extends MusicBeatState
 	var cardArray:Array<FlxSprite> = [];
 	var modTextArray:Array<FlxText> = [];
 	var freeplayText:FlxText;
+	var lastThemeSignature:String = "";
 	
 	// Opponent Mode toggle
 	public static var viewingOpponentScores:Bool = false;
@@ -76,6 +89,47 @@ class FreeplayState extends MusicBeatState
 	// Variables para el zoom del bg
 	var bgZoom:Float = 1;
 	var defaultBgZoom:Float = 1;
+
+	// Full-width bottom spectral visualizer bars
+	var vizBarsGroup:FlxTypedGroup<FlxSprite>;
+
+	#if funkin.vis
+	var _analyzer:SpectralAnalyzer = null;
+	var _analyzerLevels:Array<funkin.vis.dsp.SpectralAnalyzer.Bar> = null;
+	var _needsAnalyzerInit:Bool = false;
+	#end
+	#if (target.threaded && sys)
+    var _pendingInstSound:openfl.media.Sound = null;
+    var _pendingInstToken:Int = 0;
+    var _pendingInstIndex:Int = -1;
+    var _pendingInstBpm:Float = 102;
+    var _instLoadMutex:Mutex = new Mutex();
+    #end
+	var _prevInstSongName:String = null;
+	var currentBPM:Float = 102;
+	var previewTimer:FlxTimer = null;
+	var previewLoadToken:Int = 0;
+	var previewLoadTimer:FlxTimer = null;
+	static inline var PREVIEW_LOAD_DELAY:Float = 0.12;
+	public static var instSound:FlxSound = null;
+
+	#if mobile
+	static inline var VIZ_BAR_COUNT:Int = 96;
+	#else
+	static inline var VIZ_BAR_COUNT:Int = 160;
+	#end
+
+	static inline var VIZ_BAR_MAX_H:Int = 240;
+	static inline var VIZ_BAR_FILL:Float = 0.62;
+	static inline var VIZ_MIN_H:Int = 2;
+	static inline var VIZ_SMOOTH_SPEED:Float = 18;
+	static inline var VIZ_UPDATE_INTERVAL:Float = 1 / 60;
+
+	var _curAccentColor:Int = 0xFFB566FF;
+	var _vizCurrentHeights:Array<Float> = [];
+	var _vizTargetHeights:Array<Float> = [];
+	var _vizUpdateAccum:Float = 0;
+
 
 	override function create()
 	{
@@ -150,19 +204,23 @@ class FreeplayState extends MusicBeatState
 		blackOverlay.alpha = 0.1;
 		add(blackOverlay);
 
-        /* Fixing =p
-		{
-			var visualizer = new AudioDisplay(FlxG.sound.music, 0, FlxG.height - 120, FlxG.width, 120, 128, 4, FlxColor.WHITE);
-			visualizer.snd = FlxG.sound.music;
-			visualizer.stopUpdate = false;
-			visualizer.setMode(SPECTRUM);
-			visualizer.setColorMode(SOLID);
-			visualizer.setSensitivity(5);
-			visualizer.setFalloffSpeed(0.9);
-			visualizer.setSmoothing(0.1); 
-			add(visualizer);
+        vizBarsGroup = new FlxTypedGroup<FlxSprite>();
+
+		var vizBarW:Int = Std.int(FlxG.width / VIZ_BAR_COUNT);
+		var vizDrawW:Int = Std.int(Math.max(1, vizBarW * VIZ_BAR_FILL));
+		var vizOffsetX:Float = (vizBarW - vizDrawW) * 0.5;
+
+		for(i in 0...VIZ_BAR_COUNT) {
+		    var vbar:FlxSprite = new FlxSprite();
+		    vbar.makeGraphic(vizDrawW, VIZ_BAR_MAX_H, FlxColor.WHITE);
+		    vbar.x = i * vizBarW + vizOffsetX;
+		    vbar.y = FlxG.height - VIZ_BAR_MAX_H;
+		    vbar.alpha = 0.7;
+		
+		    vizBarsGroup.add(vbar);
 		}
-		*/
+
+		add(vizBarsGroup);
 		
 		layerFree = new FlxSprite().loadGraphic(Paths.image('ui/layerfree'));
 		layerFree.antialiasing = ClientPrefs.data.antialiasing;
@@ -170,6 +228,8 @@ class FreeplayState extends MusicBeatState
 		layerFree.updateHitbox();
 		layerFree.alpha = 0.5;
 		add(layerFree);
+		OptionsMenuTheme.syncAccent();
+		lastThemeSignature = OptionsMenuTheme.signature();
 
 		// Primero crear y añadir las cards (fondo)
 		for (i in 0...songs.length)
@@ -183,12 +243,13 @@ class FreeplayState extends MusicBeatState
 
 			try 
 			{
-				var card:FlxSprite = new FlxSprite().loadGraphic(Paths.image('ui/card'));
+				var card:FlxSprite = new FlxSprite();
+				var cardColor:Int = songs[i].color;
+				var darkestColor = FlxColor.interpolate(cardColor, FlxColor.BLACK, 0.5);
+				MD3ShapeTools.fillAndStrokeRoundRect(card, 470, 110, 22, 2, darkestColor, OptionsMenuTheme.cardStroke(false));
 				if (card != null && card.graphic != null)
 				{
 					card.antialiasing = ClientPrefs.data.antialiasing;
-					card.setGraphicSize(470, 110);
-					card.updateHitbox();
 					card.visible = false;
 					cardArray.push(card);
 					add(card);
@@ -310,6 +371,12 @@ class FreeplayState extends MusicBeatState
 		if(curSelected >= songs.length) curSelected = 0;
 		bg.color = songs[curSelected].color;
 		intendedColor = bg.color;
+		for (i in 0...vizBarsGroup.members.length)
+		{
+			var bar = vizBarsGroup.members[i];
+			var lightBar = FlxColor.interpolate(intendedColor, FlxColor.WHITE, 0.3);
+			if(bar != null) bar.color = lightBar;
+		}
 		lerpSelected = curSelected;
 
 		curDifficulty = Math.round(Math.max(0, Difficulty.defaultList.indexOf(lastDifficultyName)));
@@ -333,7 +400,12 @@ class FreeplayState extends MusicBeatState
 		add(difficultySelector.cards);
 		add(difficultySelector.items);
 		add(difficultySelector.scoreTexts);
-		
+
+		#if funkin.vis
+		_needsAnalyzerInit = true;
+		#end
+		Conductor.bpm = 102;
+
 		changeSelection();
 		updateTexts();
 
@@ -381,6 +453,106 @@ class FreeplayState extends MusicBeatState
 	override function update(elapsed:Float)
 	{
 		super.update(elapsed);
+
+		 #if (target.threaded && sys)
+        // Dispatch a pending inst sound loaded by the background thread.
+        // playMusic() and all OpenAL calls must happen on the main thread.
+        _instLoadMutex.acquire();
+        var pendingSound:openfl.media.Sound = _pendingInstSound;
+        var pendingToken:Int = _pendingInstToken;
+        var pendingIndex:Int = _pendingInstIndex;
+        var pendingBpm:Float = _pendingInstBpm;
+        if(pendingSound != null) _pendingInstSound = null;
+        _instLoadMutex.release();
+
+        if(pendingSound != null && pendingToken == previewLoadToken && pendingIndex == curSelected) {
+            try {
+                // Register in Paths cache so it gets cleaned up correctly later
+                var cacheKey:String = Paths.getPath(
+                    Language.getFileTranslation('${Paths.formatToSongPath(songs[pendingIndex].songName)}/Inst') + '.${Paths.SOUND_EXT}',
+                    openfl.utils.AssetType.SOUND, 'songs', true
+                );
+                if(!Paths.currentTrackedSounds.exists(cacheKey))
+                    Paths.currentTrackedSounds.set(cacheKey, pendingSound);
+                Paths.localTrackedAssets.push(cacheKey);
+
+                FlxG.sound.playMusic(pendingSound, 0, true);
+                FlxG.sound.music.fadeIn(1.0, 0, 0.7);
+                instSound = FlxG.sound.music;
+                instPlaying = pendingIndex;
+
+                Conductor.bpm = pendingBpm;
+
+                #if funkin.vis
+                _analyzer = null;
+                _analyzerLevels = null;
+                _needsAnalyzerInit = true;
+                #end
+            } catch(e:Dynamic) {
+                trace('[FreePlay] Error playing async-loaded inst: $e');
+                FlxG.sound.playMusic(Paths.music('freakyMenu'), 0.7);
+            }
+        }
+        #end
+		
+		// Full-width bottom spectral visualizer bars — driven exclusively by SpectralAnalyzer.
+        #if funkin.vis
+        // Lazy-init: attach to FlxG.sound.music as soon as __audioSource is ready.
+        // Both inst preview and freeplay bg music go through FlxG.sound.music now.
+        if(_needsAnalyzerInit && FlxG.sound.music != null && FlxG.sound.music.playing) {
+            @:privateAccess
+            if(FlxG.sound.music._channel != null && FlxG.sound.music._channel.__audioSource != null) {
+                _analyzer = new SpectralAnalyzer(FlxG.sound.music._channel.__audioSource, VIZ_BAR_COUNT, 0.08, 25);
+                _analyzer.minFreq = 40;
+                _analyzer.maxFreq = 18000;
+                _analyzer.minDb = -80;
+                _analyzer.maxDb = -15;
+                #if mobile
+                _analyzer.fftN = 256;
+                #elseif !web
+                _analyzer.fftN = 512;
+                #end
+                _needsAnalyzerInit = false;
+            }
+        }
+        _vizUpdateAccum += elapsed;
+        if(vizBarsGroup != null) {
+            var vizBarW:Int = Std.int(FlxG.width / VIZ_BAR_COUNT);
+            var vizOffsetX:Float = (vizBarW - Std.int(Math.max(1, vizBarW * VIZ_BAR_FILL))) * 0.5;
+
+            if (_vizUpdateAccum >= VIZ_UPDATE_INTERVAL)
+            {
+                _vizUpdateAccum = 0;
+                if(_analyzer != null) {
+                    _analyzerLevels = _analyzer.getLevels(_analyzerLevels);
+                    for(i in 0...vizBarsGroup.members.length) {
+                        var level:Float = (i < _analyzerLevels.length) ? _analyzerLevels[i].value : 0.0;
+                        _vizTargetHeights[i] = Math.max(VIZ_MIN_H, level * VIZ_BAR_MAX_H);
+                    }
+                } else {
+                    for(i in 0...vizBarsGroup.members.length) {
+                        _vizTargetHeights[i] = VIZ_MIN_H;
+                    }
+                }
+            }
+
+            var lerpFactor:Float = 1 - Math.exp(-elapsed * VIZ_SMOOTH_SPEED);
+            for(i in 0...vizBarsGroup.members.length) {
+                var vbar = vizBarsGroup.members[i];
+                if(vbar == null) continue;
+
+                var curH:Float = _vizCurrentHeights[i];
+                var targetH:Float = _vizTargetHeights[i];
+                curH = FlxMath.lerp(targetH, curH, 1 - lerpFactor);
+                _vizCurrentHeights[i] = curH;
+
+                vbar.scale.y = curH / VIZ_BAR_MAX_H;
+                // vbar.x is set once at create() — vizBarW/vizOffsetX are constants
+                vbar.y = FlxG.height - curH;
+                vbar.alpha = 1.0;
+            }
+        }
+        #end
 		
 		if(WeekData.weeksList.length < 1)
 			return;
@@ -832,6 +1004,14 @@ class FreeplayState extends MusicBeatState
 			intendedColor = newColor;
 			FlxTween.cancelTweensOf(bg);
 			FlxTween.color(bg, 1, bg.color, intendedColor);
+			for (bar in 0...vizBarsGroup.members.length)
+			{
+				var vizBar:FlxSprite = vizBarsGroup.members[bar];
+				var lightBar = FlxColor.interpolate(intendedColor, FlxColor.WHITE, 0.3);
+				if(vizBar == null) continue;
+				FlxTween.cancelTweensOf(vizBar);
+				if(vizBar != null) FlxTween.color(vizBar, 1, vizBar.color, lightBar);
+			}
 		}
 
 		for (num => item in grpSongs.members)
@@ -884,6 +1064,23 @@ class FreeplayState extends MusicBeatState
 
 		changeDiff();
 		_updateSongLastDifficulty();
+
+		if(previewTimer != null) {
+            previewTimer.cancel();
+            previewTimer = null;
+        }
+        
+        if (instPlaying != -1 || instSound != null || _prevInstSongName != null)
+            stopInstPreview(false);
+
+		if (songs[curSelected].isStepMania) {
+            // StepMania songs don't use the regular inst preview loader.
+        } else {
+            previewTimer = new FlxTimer().start(0.5, function(tmr:FlxTimer) {
+                playInstPreview();
+                previewTimer = null;
+            });
+        }
 	}
 	
 	public function detectAndLoadAllDifficulties():Void
@@ -947,6 +1144,145 @@ class FreeplayState extends MusicBeatState
 	inline private function _updateSongLastDifficulty()
 		songs[curSelected].lastDifficulty = Difficulty.getString(curDifficulty, false);
 
+	 function playInstPreview():Void {
+        if(songs.length == 0 || curSelected >= songs.length) return;
+
+        previewLoadToken++;
+        var requestToken:Int = previewLoadToken;
+        var requestedIndex:Int = curSelected;
+        var songName:String = Paths.formatToSongPath(songs[requestedIndex].songName);
+
+        if(previewLoadTimer != null) {
+            previewLoadTimer.cancel();
+            previewLoadTimer = null;
+        }
+
+        previewLoadTimer = new FlxTimer().start(PREVIEW_LOAD_DELAY, function(_:FlxTimer) {
+            previewLoadTimer = null;
+
+            if(requestToken != previewLoadToken || songs.length == 0 || requestedIndex != curSelected)
+                return;
+
+            // Free old preview cache before requesting a different song preview.
+            if(_prevInstSongName != null && _prevInstSongName != songName)
+                releasePreviewSoundCache(_prevInstSongName);
+
+            _prevInstSongName = songName;
+
+            #if (target.threaded && sys)
+            // Resolve the file path on the main thread (safe, read-only) to avoid
+            // touching shared Paths data from inside the worker thread.
+            var filePath:String = Paths.getPath(
+                Language.getFileTranslation('${songName}/Inst') + '.${Paths.SOUND_EXT}',
+                SOUND, 'songs', true
+            );
+            var capturedBpm:Float = currentBPM;
+            var capturedToken:Int = requestToken;
+            var capturedIndex:Int = requestedIndex;
+
+            // Cancel any stale pending result so update() ignores it.
+            _instLoadMutex.acquire();
+            _pendingInstSound = null;
+            _instLoadMutex.release();
+
+            ThreadUtil.execAsync(function() {
+                var loadedSound:openfl.media.Sound = null;
+                try {
+                    // Sound.fromFile() is the slow, blocking part (disk read + OGG decode).
+                    // It is safe to call from a non-main thread on native C++ targets because
+                    // OpenAL buffer upload only happens on the first play() call.
+                    #if MODS_ALLOWED
+                    if(sys.FileSystem.exists(filePath))
+                        loadedSound = openfl.media.Sound.fromFile(filePath);
+                    else
+                    #end
+                    if(openfl.utils.Assets.exists(filePath, openfl.utils.AssetType.SOUND))
+                        loadedSound = openfl.utils.Assets.getSound(filePath);
+                } catch(e:Dynamic) {
+                    trace('[FreePlay] Thread error loading inst "$songName": $e');
+                }
+
+                // Hand off to the main thread via mutex-protected fields.
+                // update() will pick this up and call playMusic() safely.
+                _instLoadMutex.acquire();
+                if(capturedToken == previewLoadToken) {
+                    _pendingInstSound = loadedSound;
+                    _pendingInstToken = capturedToken;
+                    _pendingInstIndex = capturedIndex;
+                    _pendingInstBpm  = capturedBpm;
+                }
+                _instLoadMutex.release();
+            });
+
+            #else
+            // Fallback for single-threaded targets (web, etc.): load synchronously.
+            try {
+                FlxG.sound.playMusic(Paths.inst(songName), 0, true);
+                FlxG.sound.music.fadeIn(1.0, 0, 0.7);
+                instSound = FlxG.sound.music;
+                instPlaying = requestedIndex;
+
+                Conductor.bpm = currentBPM;
+
+                #if funkin.vis
+                _analyzer = null;
+                _analyzerLevels = null;
+                _needsAnalyzerInit = true;
+                #end
+            } catch(e:Dynamic) {
+                trace('Error loading inst for $songName: $e');
+                FlxG.sound.playMusic(Paths.music('freakyMenu'), 0.7);
+            }
+            #end
+        });
+    }
+    
+    /**
+     * Stop instrumental preview and return to freakyMenu.
+     */
+    function stopInstPreview(?restoreMenuMusic:Bool = true):Void {
+        previewLoadToken++;
+        if(previewLoadTimer != null) {
+            previewLoadTimer.cancel();
+            previewLoadTimer = null;
+        }
+
+        instPlaying = -1;
+        instSound = null;
+        
+        if(restoreMenuMusic) {
+            // Restore freeplay menu music — playMusic creates a fresh stream so
+            // the SpectralAnalyzer can re-attach to it on the next frame.
+            FlxG.sound.playMusic(Paths.music('freakyMenu'), 0, true);
+            FlxG.sound.music.fadeIn(0.5, 0, 0.7);
+        }
+        
+        #if funkin.vis
+        _analyzer = null;
+        _analyzerLevels = null;
+        _needsAnalyzerInit = true;
+        #end
+        
+        Conductor.bpm = 102;
+        currentBPM = 102;
+    }
+
+	function releasePreviewSoundCache(songPath:String):Void {
+        if(songPath == null || songPath.length == 0) return;
+
+        var toRemove:Array<String> = [];
+        for(key in Paths.currentTrackedSounds.keys()) {
+            if(key.contains('/' + songPath + '/'))
+                toRemove.push(key);
+        }
+
+        for(key in toRemove) {
+            openfl.Assets.cache.clear(key);
+            Paths.currentTrackedSounds.remove(key);
+            while(Paths.localTrackedAssets.remove(key)) {}
+        }
+    }
+
 	var _drawDistance:Int = 4;
 	var _lastVisibles:Array<Int> = [];
 	public function updateTexts(elapsed:Float = 0.0)
@@ -990,7 +1326,10 @@ class FreeplayState extends MusicBeatState
 			card.visible = true;
 			card.x = baseX + 80;
 			card.y = item.y - 10;
-			card.color = songs[i].color;
+			var isSelected = (i == curSelected) && !inDifficultySelect;
+			var cardColor = songs[i].color;
+			var darkestColor = FlxColor.interpolate(cardColor, FlxColor.BLACK, 0.5);
+			MD3ShapeTools.fillAndStrokeRoundRect(card, 470, 110, 22, isSelected ? 3 : 2, darkestColor, OptionsMenuTheme.cardStroke(isSelected));
 
 			icon.x = card.x + 340;
 			item.x = card.x + 50;
@@ -1000,6 +1339,8 @@ class FreeplayState extends MusicBeatState
 			modText.x = item.x;
 			modText.y = item.y + 60;
 			modText.alpha = (i == curSelected) ? 0.8 : 0.5;
+			modText.color = OptionsMenuTheme.optionDescriptionColor(isSelected);
+			item.color = OptionsMenuTheme.optionTitleColor(isSelected);
 
 			_lastVisibles.push(i);
 		}
@@ -1170,6 +1511,18 @@ class FreeplayState extends MusicBeatState
 	
 	override function destroy():Void
 	{
+		if(vizBarsGroup != null) {
+		    vizBarsGroup.destroy();
+		    vizBarsGroup = null;
+		}
+
+		#if funkin.vis
+		_analyzer = null;
+		_analyzerLevels = null;
+		#end
+
+		Conductor.bpm = 102;
+
 		super.destroy();
 
 		FlxG.autoPause = ClientPrefs.data.autoPause;
@@ -1248,12 +1601,10 @@ class DifficultySelector
 			diffText.alpha = 0;
 			items.add(diffText);
 			
-			var card:FlxSprite = new FlxSprite().loadGraphic(Paths.image('ui/card'));
-			card.setGraphicSize(470, 110);
-			card.updateHitbox();
-			card.alpha = 0;
-			card.color = getDifficultyColor(Difficulty.getString(i));
-			cards.add(card);
+				var card:FlxSprite = new FlxSprite();
+				MD3ShapeTools.fillAndStrokeRoundRect(card, 470, 110, 22, 2, OptionsMenuTheme.cardFill(false), OptionsMenuTheme.cardStroke(false));
+				card.alpha = 0;
+				cards.add(card);
 			
 			// Crear texto de score/accuracy debajo de la dificultad
 			var scoreInfoText:FlxText = new FlxText(0, 0, 450, "", 18);

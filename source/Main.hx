@@ -174,11 +174,6 @@ class Main extends Sprite
 		ClientPrefs.loadDefaultKeys();
 		#if ACHIEVEMENTS_ALLOWED Achievements.load(); #end
 
-		// Initialize Global Scripts system
-		#if HSCRIPT_ALLOWED
-		lenin.slushithings.codenameengine.scripting.GlobalScript.init();
-		#end
-
 		#if mobile
 		FlxG.signals.postGameStart.addOnce(() -> {
 			FlxG.scaleMode = new mobile.backend.MobileScaleMode();
