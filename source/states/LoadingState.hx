@@ -40,9 +40,9 @@ class LoadingState extends MusicBeatState
 	
 	// Timeout system
 	public static var returnState:FlxState = null; // Estado al que volver si falla la carga
-	var loadingTimer:Float = 0; // Contador de tiempo de carga
-	var timeoutWarning:FlxText; // Mensaje de advertencia
-	var canEscape:Bool = false; // Si se puede presionar ESC para salir
+	public var loadingTimer:Float = 0; // Contador de tiempo de carga
+	public var timeoutWarning:FlxText; // Mensaje de advertencia
+	public var canEscape:Bool = false; // Si se puede presionar ESC para salir
 	static final TIMEOUT_DURATION:Float = 5.0; // 5 segundos
 
 	function new(target:FlxState, stopMusic:Bool)
@@ -56,35 +56,35 @@ class LoadingState extends MusicBeatState
 	inline static public function loadAndSwitchState(target:FlxState, stopMusic = false, intrusive:Bool = true)
 		MusicBeatState.switchState(getNextState(target, stopMusic, intrusive));
 	
-	var target:FlxState = null;
-	var stopMusic:Bool = false;
-	var dontUpdate:Bool = false;
+	public var target:FlxState = null;
+	public var stopMusic:Bool = false;
+	public var dontUpdate:Bool = false;
 
-	var barGroup:FlxSpriteGroup;
-	var bar:FlxSprite;
-	var barWidth:Int = 0;
-	var intendedPercent:Float = 0;
-	var curPercent:Float = 0;
-	var stateChangeDelay:Float = 0;
+	public var barGroup:FlxSpriteGroup;
+	public var bar:FlxSprite;
+	public var barWidth:Int = 0;
+	public var intendedPercent:Float = 0;
+	public var curPercent:Float = 0;
+	public var stateChangeDelay:Float = 0;
 
 	#if PSYCH_WATERMARKS
-	var logo:FlxSprite;
-	var pessy:FlxSprite;
-	var loadingText:FlxText;
+	public var logo:FlxSprite;
+	public var pessy:FlxSprite;
+	public var loadingText:FlxText;
 
-	var timePassed:Float;
-	var shakeFl:Float;
-	var shakeMult:Float = 0;
+	public var timePassed:Float;
+	public var shakeFl:Float;
+	public var shakeMult:Float = 0;
 	
-	var isSpinning:Bool = false;
-	var spawnedPessy:Bool = false;
-	var pressedTimes:Int = 0;
+	public var isSpinning:Bool = false;
+	public var spawnedPessy:Bool = false;
+	public var pressedTimes:Int = 0;
 	#else
-	var funkay:FlxSprite;
+	public var funkay:FlxSprite;
 	#end
 
 	#if HSCRIPT_ALLOWED
-	var hscript:HScript;
+	public var hscript:HScript;
 	#end
 	override function create()
 	{

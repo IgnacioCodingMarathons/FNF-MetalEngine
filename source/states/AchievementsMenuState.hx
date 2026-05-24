@@ -16,9 +16,9 @@ class AchievementsMenuState extends MusicBeatState
 	public var progressTxt:FlxText;
 	public var progressBar:Bar;
 
-	var camFollow:FlxObject;
+	public var camFollow:FlxObject;
 
-	var MAX_PER_ROW:Int = 4;
+	public var MAX_PER_ROW:Int = 4;
 
 	override function create()
 	{

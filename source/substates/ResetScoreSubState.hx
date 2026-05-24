@@ -7,16 +7,16 @@ import objects.HealthIcon;
 
 class ResetScoreSubState extends MusicBeatSubstate
 {
-	var bg:FlxSprite;
-	var alphabetArray:Array<Alphabet> = [];
-	var icon:HealthIcon;
-	var onYes:Bool = false;
-	var yesText:Alphabet;
-	var noText:Alphabet;
+	public var bg:FlxSprite;
+	public var alphabetArray:Array<Alphabet> = [];
+	public var icon:HealthIcon;
+	public var onYes:Bool = false;
+	public var yesText:Alphabet;
+	public var noText:Alphabet;
 
-	var song:String;
-	var difficulty:Int;
-	var week:Int;
+	public var song:String;
+	public var difficulty:Int;
+	public var week:Int;
 
 	// Week -1 = Freeplay
 	public function new(song:String, difficulty:Int, character:String, week:Int = -1)

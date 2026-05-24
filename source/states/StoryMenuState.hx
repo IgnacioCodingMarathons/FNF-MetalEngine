@@ -19,29 +19,29 @@ class StoryMenuState extends MusicBeatState
 {
 	public static var weekCompleted:Map<String, Bool> = new Map<String, Bool>();
 
-	var scoreText:FlxText;
+	public var scoreText:FlxText;
 
-	private static var lastDifficultyName:String = '';
-	var curDifficulty:Int = 1;
+	public static var lastDifficultyName:String = '';
+	public var curDifficulty:Int = 1;
 
-	var txtWeekTitle:FlxText;
-	var bgSprite:FlxSprite;
+	public var txtWeekTitle:FlxText;
+	public var bgSprite:FlxSprite;
 
-	private static var curWeek:Int = 0;
+	public static var curWeek:Int = 0;
 
-	var txtTracklist:FlxText;
+	public var txtTracklist:FlxText;
 
-	var grpWeekText:FlxTypedGroup<MenuItem>;
-	var grpWeekCharacters:FlxTypedGroup<MenuCharacter>;
+	public var grpWeekText:FlxTypedGroup<MenuItem>;
+	public var grpWeekCharacters:FlxTypedGroup<MenuCharacter>;
 
-	var grpLocks:FlxTypedGroup<FlxSprite>;
+	public var grpLocks:FlxTypedGroup<FlxSprite>;
 
-	var difficultySelectors:FlxGroup;
-	var sprDifficulty:FlxSprite;
-	var leftArrow:FlxSprite;
-	var rightArrow:FlxSprite;
+	public var difficultySelectors:FlxGroup;
+	public var sprDifficulty:FlxSprite;
+	public var leftArrow:FlxSprite;
+	public var rightArrow:FlxSprite;
 
-	var loadedWeeks:Array<WeekData> = [];
+	public var loadedWeeks:Array<WeekData> = [];
 
 	override function create()
 	{

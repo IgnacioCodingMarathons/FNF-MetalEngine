@@ -25,42 +25,42 @@ import lime.utils.Assets;
 
 class ModsMenuState extends MusicBeatState
 {
-	var bg:FlxSprite;
-	var icon:FlxSprite;
-	var modName:Alphabet;
-	var modDesc:FlxText;
-	var modRestartText:FlxText;
-	var modsList:ModsList = null;
+	public var bg:FlxSprite;
+	public var icon:FlxSprite;
+	public var modName:Alphabet;
+	public var modDesc:FlxText;
+	public var modRestartText:FlxText;
+	public var modsList:ModsList = null;
 
-	var bgList:FlxSprite;
-	var buttonReload:MenuButton;
+	public var bgList:FlxSprite;
+	public var buttonReload:MenuButton;
 	//var buttonModFolder:MenuButton;
-	var buttonEnableAll:MenuButton;
-	var buttonDisableAll:MenuButton;
-	var buttons:Array<MenuButton> = [];
-	var settingsButton:MenuButton;
+	public var buttonEnableAll:MenuButton;
+	public var buttonDisableAll:MenuButton;
+	public var buttons:Array<MenuButton> = [];
+	public var settingsButton:MenuButton;
 	
-	var buttonToggleMainY:Float = 0; // Posición Y principal para los botones toggle
-	var buttonToggleSecondY:Float = 0; // Posición Y secundaria para el botón oculto
-	var buttonToggleHiddenY:Float = 0; // Posición fuera de pantalla para ocultar con tween
-	var toggleButtonsInitialized:Bool = false;
+	public var buttonToggleMainY:Float = 0; // Posición Y principal para los botones toggle
+	public var buttonToggleSecondY:Float = 0; // Posición Y secundaria para el botón oculto
+	public var buttonToggleHiddenY:Float = 0; // Posición fuera de pantalla para ocultar con tween
+	public var toggleButtonsInitialized:Bool = false;
 
-	var bgTitle:FlxSprite;
-	var bgDescription:FlxSprite;
-	var bgButtons:FlxSprite;
+	public var bgTitle:FlxSprite;
+	public var bgDescription:FlxSprite;
+	public var bgButtons:FlxSprite;
 
-	var modsGroup:FlxTypedGroup<ModItem>;
-	var curSelectedMod:Int = 0;
+	public var modsGroup:FlxTypedGroup<ModItem>;
+	public var curSelectedMod:Int = 0;
 	
-	var hoveringOnMods:Bool = true;
-	var curSelectedButton:Int = 0; ///-1 = Enable/Disable All, -2 = Reload
-	var modNameInitialY:Float = 0;
+	public var hoveringOnMods:Bool = true;
+	public var curSelectedButton:Int = 0; ///-1 = Enable/Disable All, -2 = Reload
+	public var modNameInitialY:Float = 0;
 
-	var noModsSine:Float = 0;
-	var noModsTxt:FlxText;
+	public var noModsSine:Float = 0;
+	public var noModsTxt:FlxText;
 
-	var _lastControllerMode:Bool = false;
-	var startMod:String = null;
+	public var _lastControllerMode:Bool = false;
+	public var startMod:String = null;
 	public function new(startMod:String = null)
 	{
 		this.startMod = startMod;

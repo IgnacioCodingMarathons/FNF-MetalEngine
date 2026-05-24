@@ -26,8 +26,6 @@ class InitialState extends MusicBeatState
 		// This is the first state created, so FlxG.state now exists
 		#if HSCRIPT_ALLOWED
 		backend.MusicBeatState.initGlobalScript();
-		backend.MusicBeatState.initMusicBeatStateScript();
-		backend.MusicBeatSubstate.initMusicBeatSubstateScript();
 		backend.CustomFadeTransition.initCustomTransitionScript();
 		#end
 		

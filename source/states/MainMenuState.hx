@@ -19,25 +19,25 @@ class MainMenuState extends MusicBeatState
 	public static var psychEngineVersion:String = "1.0.4 (" + plusEngineVersion + ")"; // This is also used for Discord RPC
 	public static var curSelected:Int = 0;
 	public static var curColumn:MainMenuColumn = CENTER;
-	var allowMouse:Bool = true; //Turn this off to block mouse movement in menus
+	public var allowMouse:Bool = true; //Turn this off to block mouse movement in menus
 
-	var menuItems:FlxTypedGroup<FlxSprite>;
-	var leftItem:FlxSprite;
-	var rightItem:FlxSprite;
+	public var menuItems:FlxTypedGroup<FlxSprite>;
+	public var leftItem:FlxSprite;
+	public var rightItem:FlxSprite;
 
 	//Centered/Text options
-	var optionShit:Array<String> = [
+	public var optionShit:Array<String> = [
 		'story_mode',
 		'freeplay',
 		#if MODS_ALLOWED 'mods', #end
 		'credits'
 	];
 
-	var leftOption:String = #if ACHIEVEMENTS_ALLOWED 'achievements' #else null #end;
-	var rightOption:String = 'options';
+	public var leftOption:String = #if ACHIEVEMENTS_ALLOWED 'achievements' #else null #end;
+	public var rightOption:String = 'options';
 
-	var magenta:FlxSprite;
-	var camFollow:FlxObject;
+	public var magenta:FlxSprite;
+	public var camFollow:FlxObject;
 
 	static var showOutdatedWarning:Bool = true;
 	static var updateWarningShown:Bool = false; // Para mostrar el aviso solo una vez por sesión

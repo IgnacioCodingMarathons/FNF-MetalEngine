@@ -69,6 +69,9 @@ import objects.Cursor;
 import states.PlayState;
 import states.LoadingState;
 
+import psychlua.LuaUtils.Function_Stop;
+import psychlua.LuaUtils.Function_Continue;
+
 #if flxanimate
 import flxanimate.*;
 import flxanimate.PsychFlxAnimate as FlxAnimate;

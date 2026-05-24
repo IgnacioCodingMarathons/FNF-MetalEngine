@@ -32,6 +32,9 @@ import sys.FileSystem;
 
 class MusicBeatState extends BaseMusicBeatState
 {
+	public static inline var Function_Continue:Int = 0;
+	public static inline var Function_Stop:Int = 1;
+
 	public static inline function stateScriptOverridesEnabled():Bool
 		return ClientPrefs.data.useScriptableCustomStates;
 
@@ -44,15 +47,6 @@ class MusicBeatState extends BaseMusicBeatState
 	public static var globalScript:HScript = null;
 	public static var publicVariables:Map<String, Dynamic> = new Map<String, Dynamic>();
 	public static var staticVariables:Map<String, Dynamic> = new Map<String, Dynamic>();
-	#end
-	
-	// MusicBeatState specific scripts (run on all MusicBeatState instances but not substates)
-	#if LUA_ALLOWED
-	public static var musicBeatStateLuaScript:FunkinLua = null;
-	#end
-	
-	#if HSCRIPT_ALLOWED
-	public static var musicBeatStateScript:HScript = null;
 	#end
 	
 	// Global variables storage that persists across all states
@@ -87,10 +81,6 @@ class MusicBeatState extends BaseMusicBeatState
 		this.scriptsAllowed = scriptsAllowed;
 		this.scriptName = scriptName;
 	}
-	
-
-
-
 
 	override function create() {
 		var skip:Bool = FlxTransitionableState.skipNextTransOut;
@@ -114,10 +104,9 @@ class MusicBeatState extends BaseMusicBeatState
 		if(!skip) {
 			// Call scripts before fade in - if they return Function_Stop, they handle their own transition
 			var globalResult = callOnGlobalScript('onFadeIn');
-			var stateResult = callOnMusicBeatStateScript('onFadeIn');
 			
 			// Only use default transition if scripts didn't stop it
-			if(globalResult != LuaUtils.Function_Stop && stateResult != LuaUtils.Function_Stop) {
+			if(globalResult != LuaUtils.Function_Stop) {
 				openSubState(new CustomFadeTransition(0.7, true));
 			}
 		}
@@ -132,10 +121,6 @@ class MusicBeatState extends BaseMusicBeatState
 		if (!isScriptDriven && stateScriptOverridesEnabled())
 			_loadCompanionScript();
 		#end
-
-		// Legacy midpoint create hook.
-		callOnCompanionScript('onCreate');
-		callOnCompanionScript('onCreatePost');
 	}
 
 	public static var traceDisplay:TraceDisplay;
@@ -175,19 +160,12 @@ class MusicBeatState extends BaseMusicBeatState
 		
 		// Call global script update
 		callOnGlobalScript('onUpdate', [elapsed]);
-		// Call MusicBeatState-specific script
-		callOnMusicBeatStateScript('onUpdate', [elapsed]);
-		// Legacy pre-update hook
-		callOnCompanionScript('onUpdate', [elapsed]);
 		
 		stagesFunc(function(stage:BaseStage) {
 			stage.update(elapsed);
 		});
 
 		super.update(elapsed);
-
-		// Companion post-update (fires after all logic)
-		callOnCompanionScript('onUpdatePost', [elapsed]);
 	}
 
 	public static function switchState(nextState:FlxState = null) {
@@ -203,10 +181,9 @@ class MusicBeatState extends BaseMusicBeatState
 
 		// Call scripts before switching - they can stop the default transition
 		var globalResult = callOnGlobalScript('onSwitchState', [Type.getClassName(Type.getClass(nextState))]);
-		var stateResult = callOnMusicBeatStateScript('onSwitchState', [Type.getClassName(Type.getClass(nextState))]);
 		
 		// If scripts stopped the transition, they handle it themselves
-		if(globalResult == LuaUtils.Function_Stop || stateResult == LuaUtils.Function_Stop) {
+		if(globalResult == LuaUtils.Function_Stop) {
 			// Script is handling the transition, just switch without custom transition
 			FlxG.switchState(nextState);
 			return;
@@ -220,10 +197,9 @@ class MusicBeatState extends BaseMusicBeatState
 	public static function resetState() {
 		// Call scripts before resetting - they can stop the default transition
 		var globalResult = callOnGlobalScript('onResetState');
-		var stateResult = callOnMusicBeatStateScript('onResetState');
 		
 		// If scripts stopped the transition, they handle it themselves
-		if(globalResult == LuaUtils.Function_Stop || stateResult == LuaUtils.Function_Stop) {
+		if(globalResult == LuaUtils.Function_Stop) {
 			// Script is handling the transition, just reset without custom transition
 			FlxG.switchState(_makeCurrentStateReset());
 			return;
@@ -261,10 +237,9 @@ class MusicBeatState extends BaseMusicBeatState
 		// Call scripts when transition starts - if they return Function_Stop, they handle their own transition
 		var isReset:Bool = (nextState == FlxG.state);
 		var globalResult = callOnGlobalScript('onStartTransition', [isReset, Type.getClassName(Type.getClass(nextState))]);
-		var stateResult = callOnMusicBeatStateScript('onStartTransition', [isReset, Type.getClassName(Type.getClass(nextState))]);
 		
 		// If scripts stopped it, they're handling the transition themselves
-		if(globalResult == LuaUtils.Function_Stop || stateResult == LuaUtils.Function_Stop) {
+		if(globalResult == LuaUtils.Function_Stop) {
 			if(isReset)
 				FlxG.switchState(_makeCurrentStateReset());
 			else
@@ -296,41 +271,24 @@ class MusicBeatState extends BaseMusicBeatState
 	override public function stepHit():Void
 	{
 		callOnGlobalScript('onStepHit', [curStep]);
-		callOnMusicBeatStateScript('onStepHit', [curStep]);
-		// Legacy pre-step hook
-		callOnCompanionScript('onStepHit', [curStep]);
 		super.stepHit();
-		callOnCompanionScript('onStepHitPost', [curStep]);
 	}
 
 	override public function beatHit():Void
 	{
 		callOnGlobalScript('onBeatHit', [curBeat]);
-		callOnMusicBeatStateScript('onBeatHit', [curBeat]);
-		// Legacy pre-beat hook
-		callOnCompanionScript('onBeatHit', [curBeat]);
 		super.beatHit();
-		callOnCompanionScript('onBeatHitPost', [curBeat]);
 	}
 
 	override public function sectionHit():Void
 	{
 		callOnGlobalScript('onSectionHit', [curSection]);
-		callOnMusicBeatStateScript('onSectionHit', [curSection]);
-		// Legacy pre-section hook
-		callOnCompanionScript('onSectionHit', [curSection]);
 		super.sectionHit();
-		callOnCompanionScript('onSectionHitPost', [curSection]);
 	}
 
 	override function destroy():Void
 	{
-		// Legacy destroy hook
-		callOnCompanionScript('onDestroy');
-
 		super.destroy();
-
-		callOnCompanionScript('onDestroyPost');
 
 		#if HSCRIPT_ALLOWED
 		if (companionScript != null)
@@ -403,6 +361,7 @@ class MusicBeatState extends BaseMusicBeatState
 		try
 		{
 			companionScript = new HScript(null, path);
+			injectReturnConstants(companionScript);
 
 			// Expose useful variables — 'game' points to the actual hardcoded state
 			companionScript.set('game',         this);
@@ -774,135 +733,14 @@ class MusicBeatState extends BaseMusicBeatState
 		
 		return returnVal;
 	}
-	
-	public static function initMusicBeatStateScript():Void
+
+	#if HSCRIPT_ALLOWED
+	private function injectReturnConstants(script:HScript):Void
 	{
-		// Try to load Lua MusicBeatState script first
-		#if (LUA_ALLOWED && sys)
-		if(musicBeatStateLuaScript == null)
-		{
-			#if MODS_ALLOWED
-			var luaPath:String = Paths.modFolders('scripts/MusicBeatState.lua');
-			if(!FileSystem.exists(luaPath))
-				luaPath = Paths.getSharedPath('scripts/MusicBeatState.lua');
-			#else
-			var luaPath:String = Paths.getSharedPath('scripts/MusicBeatState.lua');
-			#end
-			
-			if(FileSystem.exists(luaPath))
-			{
-				trace('Loading MusicBeatState Lua Script from: $luaPath');
-				musicBeatStateLuaScript = new FunkinLua(luaPath);
-				trace('MusicBeatState (Lua) initialized successfully');
-			}
-		}
-		#end
-		
-		// Then load HScript MusicBeatState script
-		if(musicBeatStateScript != null) return; // Already initialized
-		
-		#if MODS_ALLOWED
-		var scriptPath:String = Paths.modFolders('scripts/MusicBeatState.hx');
-		if(scriptPath == null || !FileSystem.exists(scriptPath))
-			scriptPath = Paths.getSharedPath('scripts/MusicBeatState.hx');
-		#else
-		var scriptPath:String = Paths.getSharedPath('scripts/MusicBeatState.hx');
-		#end
-		
-		if(scriptPath == null || !FileSystem.exists(scriptPath))
-		{
-			trace('No MusicBeatState script found');
-			return;
-		}
-		
-		#if HSCRIPT_ALLOWED
-		try
-		{
-			trace('MusicBeatState: Loading script from: $scriptPath');
-			musicBeatStateScript = new HScript(null, scriptPath, null, true);
-			
-			if(musicBeatStateScript == null)
-			{
-				trace('MusicBeatState: Failed to create HScript instance');
-				return;
-			}
-			
-			// Set up helper functions
-			musicBeatStateScript.set('import', function(className:String) {
-				trace('MusicBeatState: Import is built-in, $className should already be available');
-			});
-			
-			// Parse and execute
-			musicBeatStateScript.parse(true);
-			musicBeatStateScript.execute();
-			
-			// Call onCreate if it exists
-			if (musicBeatStateScript.exists('onCreate'))
-			{
-				musicBeatStateScript.call('onCreate');
-				trace('MusicBeatState: onCreate() called successfully');
-			}
-			
-			trace('MusicBeatState script initialized successfully');
-		}
-		catch(e:IrisError)
-		{
-			try {
-				var errorMsg = Printer.errorToString(e, false);
-				trace('MusicBeatState Script Error: $errorMsg');
-				if(TraceDisplay.instance != null)
-					TraceDisplay.addHScriptError(errorMsg, scriptPath);
-			} catch(printerError:Dynamic) {
-				trace('MusicBeatState: Error while processing IrisError: $printerError');
-			}
-		}
-		catch(e:Dynamic)
-		{
-			trace('MusicBeatState Script Error (unexpected): $e');
-			#if HSCRIPT_ALLOWED
-			if(TraceDisplay.instance != null)
-				TraceDisplay.addHScriptError('Unexpected error: $e', scriptPath);
-			#end
-		}
-		#end
+		if (script == null) return;
+
+		script.set('Function_Continue', LuaUtils.Function_Continue);
+		script.set('Function_Stop', LuaUtils.Function_Stop);
 	}
-	
-	public static function callOnMusicBeatStateScript(funcToCall:String, args:Array<Dynamic> = null):Dynamic
-	{
-		var returnVal:Dynamic = LuaUtils.Function_Continue;
-		
-		// Call on Lua script first
-		#if LUA_ALLOWED
-		if(musicBeatStateLuaScript != null)
-		{
-			var ret:Dynamic = musicBeatStateLuaScript.call(funcToCall, args != null ? args : []);
-			if(ret != null && ret != LuaUtils.Function_Continue)
-				returnVal = ret;
-		}
-		#end
-		
-		// Then call on HScript
-		#if HSCRIPT_ALLOWED
-		if(musicBeatStateScript != null && musicBeatStateScript.exists(funcToCall))
-		{
-			try {
-				var callValue = musicBeatStateScript.call(funcToCall, args);
-				if(callValue != null && callValue.returnValue != null)
-				{
-					var myValue:Dynamic = callValue.returnValue;
-					if(myValue != LuaUtils.Function_Continue)
-						returnVal = myValue;
-				}
-			}
-			catch(e:Dynamic) {
-				trace('MusicBeatState Script Error calling $funcToCall: $e');
-				@:privateAccess
-				var fileName = musicBeatStateScript.origin != null ? musicBeatStateScript.origin : "MusicBeatState";
-				TraceDisplay.addHScriptError('Runtime error in $funcToCall: $e', fileName);
-			}
-		}
-		#end
-		
-		return returnVal;
-	}
+	#end
 }

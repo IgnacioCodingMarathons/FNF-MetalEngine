@@ -14,9 +14,9 @@ import lime.ui.Haptic;
 class GameOverSubstate extends MusicBeatSubstate
 {
 	public var boyfriend:Character;
-	var camFollow:FlxObject;
+	public var camFollow:FlxObject;
 
-	var stagePostfix:String = "";
+	public var stagePostfix:String = "";
 
 	public static var characterName:String = 'bf-dead';
 	public static var deathSoundName:String = 'fnf_loss_sfx';

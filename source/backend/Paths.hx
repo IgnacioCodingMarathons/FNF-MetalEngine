@@ -612,9 +612,9 @@ class Paths
 			xmlExists = true;
 
 		return FlxAtlasFrames.fromSparrow(imageLoaded,
-			(xmlExists ? stripBOM(File.getContent(xml)) : getPath(Language.getFileTranslation('images/$key') + '.xml', TEXT, parentFolder)));
+			(xmlExists ? stripBOM(File.getContent(xml)) : stripBOM(getTextFromFile(Language.getFileTranslation('images/$key') + '.xml', true))));
 		#else
-		return FlxAtlasFrames.fromSparrow(imageLoaded, getPath(Language.getFileTranslation('images/$key') + '.xml', TEXT, parentFolder));
+		return FlxAtlasFrames.fromSparrow(imageLoaded, stripBOM(getTextFromFile(Language.getFileTranslation('images/$key') + '.xml', true)));
 		#end
 	}
 

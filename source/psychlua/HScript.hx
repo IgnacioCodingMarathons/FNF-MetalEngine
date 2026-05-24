@@ -259,6 +259,7 @@ class HScript extends Iris
 		set('FlxTimer', flixel.util.FlxTimer);
 		set('FlxTween', flixel.tweens.FlxTween);
 		set('FlxEase', flixel.tweens.FlxEase);
+		set('FlxSound', flixel.sound.FlxSound);
 
 		// Backwards compatibility: older mods expect a global `modchartTweens` map
 		// that stores tweens by tag. Use the shared PlayState instance so all

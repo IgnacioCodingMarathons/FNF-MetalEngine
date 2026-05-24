@@ -42,74 +42,74 @@ class FreeplayState extends MusicBeatState
 	public static var instance:FreeplayState;
 	public var songs:Array<SongMetadata> = [];
 
-	var selector:FlxText;
-	var pendingSong:String = null;
+	public var selector:FlxText;
+	public var pendingSong:String = null;
 	public static var curSelected:Int = 0;
-	var lerpSelected:Float = 0;
-	var curDifficulty:Int = -1;
+	public var lerpSelected:Float = 0;
+	public var curDifficulty:Int = -1;
 	private static var lastDifficultyName:String = Difficulty.getDefault();
 
 	// scoreText eliminado - ahora se muestra debajo de cada dificultad
-	var lerpScore:Int = 0;
-	var lerpRating:Float = 0;
-	var intendedScore:Int = 0;
-	var intendedRating:Float = 0;
+	public var lerpScore:Int = 0;
+	public var lerpRating:Float = 0;
+	public var intendedScore:Int = 0;
+	public var intendedRating:Float = 0;
 
 	private var grpSongs:FlxTypedGroup<FlxText>;
 	private var curPlaying:Bool = false;
 
 	private var iconArray:Array<HealthIcon> = [];
 
-	var bg:FlxSprite;
-	var intendedColor:Int;
+	public var bg:FlxSprite;
+	public var intendedColor:Int;
 
-	var missingTextBG:FlxSprite;
-	var missingText:FlxText;
+	public var missingTextBG:FlxSprite;
+	public var missingText:FlxText;
 
-	var bottomString:String;
-	var bottomText:FlxText;
+	public var bottomString:String;
+	public var bottomText:FlxText;
 
-	var player:MusicPlayer;
+	public var player:MusicPlayer;
 	
-	var inDifficultySelect:Bool = false;
-	var difficultySelector:DifficultySelector;
-	var songsOffsetX:Float = 0;
+	public var inDifficultySelect:Bool = false;
+	public var difficultySelector:DifficultySelector;
+	public var songsOffsetX:Float = 0;
 	
-	var blackOverlay:FlxSprite;
-	var layerFree:FlxSprite;
-	var cardArray:Array<FlxSprite> = [];
-	var modTextArray:Array<FlxText> = [];
-	var freeplayText:FlxText;
-	var lastThemeSignature:String = "";
+	public var blackOverlay:FlxSprite;
+	public var layerFree:FlxSprite;
+	public var cardArray:Array<FlxSprite> = [];
+	public var modTextArray:Array<FlxText> = [];
+	public var freeplayText:FlxText;
+	public var lastThemeSignature:String = "";
 	
 	// Opponent Mode toggle
 	public static var viewingOpponentScores:Bool = false;
-	var opponentModeText:FlxText;
+	public var opponentModeText:FlxText;
 	
 	// Variables para el zoom del bg
-	var bgZoom:Float = 1;
-	var defaultBgZoom:Float = 1;
+	public var bgZoom:Float = 1;
+	public var defaultBgZoom:Float = 1;
 
 	// Full-width bottom spectral visualizer bars
-	var vizBarsGroup:FlxTypedGroup<FlxSprite>;
+	public var vizBarsGroup:FlxTypedGroup<FlxSprite>;
 
 	#if funkin.vis
-	var _analyzer:SpectralAnalyzer = null;
-	var _analyzerLevels:Array<funkin.vis.dsp.SpectralAnalyzer.Bar> = null;
-	var _needsAnalyzerInit:Bool = false;
+	public var _analyzer:SpectralAnalyzer = null;
+	public var _analyzerLevels:Array<funkin.vis.dsp.SpectralAnalyzer.Bar> = null;
+	public var _needsAnalyzerInit:Bool = false;
 	#end
 	#if (target.threaded && sys)
-    var _pendingInstSound:openfl.media.Sound = null;
-    var _pendingInstToken:Int = 0;
-    var _pendingInstIndex:Int = -1;
-    var _pendingInstBpm:Float = 102;
-    var _instLoadMutex:Mutex = new Mutex();
+    public var _pendingInstSound:openfl.media.Sound = null;
+    public var _pendingInstToken:Int = 0;
+    public var _pendingInstIndex:Int = -1;
+    public var _pendingInstBpm:Float = 102;
+    public var _instLoadMutex:Mutex = new Mutex();
     #end
-	var _prevInstSongName:String = null;
-	var currentBPM:Float = 102;
-	var previewTimer:FlxTimer = null;
-	var previewLoadToken:Int = 0;
-	var previewLoadTimer:FlxTimer = null;
+	public var _prevInstSongName:String = null;
+	public var currentBPM:Float = 102;
+	public var previewTimer:FlxTimer = null;
+	public var previewLoadToken:Int = 0;
+	public var previewLoadTimer:FlxTimer = null;
 	static inline var PREVIEW_LOAD_DELAY:Float = 0.12;
 	public static var instSound:FlxSound = null;
 
@@ -119,17 +119,16 @@ class FreeplayState extends MusicBeatState
 	static inline var VIZ_BAR_COUNT:Int = 160;
 	#end
 
-	static inline var VIZ_BAR_MAX_H:Int = 240;
-	static inline var VIZ_BAR_FILL:Float = 0.62;
-	static inline var VIZ_MIN_H:Int = 2;
-	static inline var VIZ_SMOOTH_SPEED:Float = 18;
-	static inline var VIZ_UPDATE_INTERVAL:Float = 1 / 60;
+	public static inline var VIZ_BAR_MAX_H:Int = 240;
+	public static inline var VIZ_BAR_FILL:Float = 0.62;
+	public static inline var VIZ_MIN_H:Int = 2;
+	public static inline var VIZ_SMOOTH_SPEED:Float = 18;
+	public static inline var VIZ_UPDATE_INTERVAL:Float = 1 / 60;
 
-	var _curAccentColor:Int = 0xFFB566FF;
-	var _vizCurrentHeights:Array<Float> = [];
-	var _vizTargetHeights:Array<Float> = [];
-	var _vizUpdateAccum:Float = 0;
-
+	public var _curAccentColor:Int = 0xFFB566FF;
+	public var _vizCurrentHeights:Array<Float> = [];
+	public var _vizTargetHeights:Array<Float> = [];
+	public var _vizUpdateAccum:Float = 0;
 
 	override function create()
 	{

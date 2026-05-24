@@ -28,36 +28,36 @@ import backend.Mods;
 
 class ResultsState extends MusicBeatState
 {
-    var menuBG:FlxSprite;
-    var backdropImage:FlxSprite;
-    var flxGroupImage:FlxSprite;
-    var songInstrumental:String = "";
-    var canRetry:Bool = true;
-    var params:Dynamic;
+    public var menuBG:FlxSprite;
+    public var backdropImage:FlxSprite;
+    public var flxGroupImage:FlxSprite;
+    public var songInstrumental:String = "";
+    public var canRetry:Bool = true;
+    public var params:Dynamic;
 
-    var animatedScore:Int = 0;
-    var animatedFlawlesss:Int = 0;
-    var animatedSicks:Int = 0;
-    var animatedGoods:Int = 0;
-    var animatedBads:Int = 0;
-    var animatedShits:Int = 0;
-    var animatedMisses:Int = 0;
-    var animatedCombo:Int = 0;
-    var animatedAccuracy:Float = 0;
+    public var animatedScore:Int = 0;
+    public var animatedFlawlesss:Int = 0;
+    public var animatedSicks:Int = 0;
+    public var animatedGoods:Int = 0;
+    public var animatedBads:Int = 0;
+    public var animatedShits:Int = 0;
+    public var animatedMisses:Int = 0;
+    public var animatedCombo:Int = 0;
+    public var animatedAccuracy:Float = 0;
 
-    var scoreText:FlxText;
-    var flawlesss:FlxText;
-    var sicks:FlxText;
-    var goods:FlxText;
-    var bads:FlxText;
-    var shits:FlxText;
-    var misses:FlxText;
-    var comboText:FlxText;
-    var accText:FlxText;
+    public var scoreText:FlxText;
+    public var flawlesss:FlxText;
+    public var sicks:FlxText;
+    public var goods:FlxText;
+    public var bads:FlxText;
+    public var shits:FlxText;
+    public var misses:FlxText;
+    public var comboText:FlxText;
+    public var accText:FlxText;
 
-    static var use24HourFormat:Null<Bool> = true;
-    static var dateFormat:String = "MM/DD/YYYY";
-    static var timeFormat:String = "HH:mm";
+    public static var use24HourFormat:Null<Bool> = true;
+    public static var dateFormat:String = "MM/DD/YYYY";
+    public static var timeFormat:String = "HH:mm";
 
     public function new(params:Dynamic)
     {

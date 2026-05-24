@@ -10,15 +10,15 @@ class OutdatedSubState extends MusicBeatSubstate
 {
     public static var updateVersion:String = ""; // Agregar esta variable estática
     
-	var leftState:Bool = false;
-    var changelogLoaded:Bool = false;
-    var changelog:String = "";
+	public var leftState:Bool = false;
+    public var changelogLoaded:Bool = false;
+    public var changelog:String = "";
 
-	var bg:FlxSprite;
-    var titleText:FlxText;
-    var versionText:FlxText;
-    var changelogText:FlxText;
-    var controlsText:FlxText;
+	public var bg:FlxSprite;
+    public var titleText:FlxText;
+    public var versionText:FlxText;
+    public var changelogText:FlxText;
+    public var controlsText:FlxText;
 
 	override function create()
 	{

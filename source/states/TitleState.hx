@@ -23,19 +23,19 @@ import mobile.backend.TouchUtil;
 
 typedef TitleData =
 {
-	var titlex:Float;
-	var titley:Float;
-	var startx:Float;
-	var starty:Float;
-	var gfx:Float;
-	var gfy:Float;
-	var backgroundSprite:String;
-	var bpm:Float;
+	public var titlex:Float;
+	public var titley:Float;
+	public var startx:Float;
+	public var starty:Float;
+	public var gfx:Float;
+	public var gfy:Float;
+	public var backgroundSprite:String;
+	public var bpm:Float;
 	
-	@:optional var animation:String;
-	@:optional var dance_left:Array<Int>;
-	@:optional var dance_right:Array<Int>;
-	@:optional var idle:Bool;
+	@:optional public var animation:String;
+	@:optional public var dance_left:Array<Int>;
+	@:optional public var dance_right:Array<Int>;
+	@:optional public var idle:Bool;
 }
 
 class TitleState extends MusicBeatState
@@ -47,34 +47,34 @@ class TitleState extends MusicBeatState
 	public static var initialized:Bool = false;
 	public static var fromSubstate:Bool = false; // Variable para detectar si viene del substate
 	
-	var forceShowIntro:Bool = false; // Si debe forzar mostrar la intro
+	public var forceShowIntro:Bool = false; // Si debe forzar mostrar la intro
 
-	var credGroup:FlxGroup = new FlxGroup();
-	var textGroup:FlxGroup = new FlxGroup();
-	var blackScreen:FlxSprite;
-	var credTextShit:Alphabet;
-	var ngSpr:FlxSprite;
+	public var credGroup:FlxGroup = new FlxGroup();
+	public var textGroup:FlxGroup = new FlxGroup();
+	public var blackScreen:FlxSprite;
+	public var credTextShit:Alphabet;
+	public var ngSpr:FlxSprite;
 	
-	var titleTextColors:Array<FlxColor> = [0xFF33FFFF, 0xFF3333CC];
-	var titleTextAlphas:Array<Float> = [1, .64];
+	public var titleTextColors:Array<FlxColor> = [0xFF33FFFF, 0xFF3333CC];
+	public var titleTextAlphas:Array<Float> = [1, .64];
 
-	var curWacky:Array<String> = [];
+	public var curWacky:Array<String> = [];
 
-	var wackyImage:FlxSprite;
+	public var wackyImage:FlxSprite;
 
 	#if TITLE_SCREEN_EASTER_EGG
-	final easterEggKeys:Array<String> = [
+	public final easterEggKeys:Array<String> = [
 		'SHADOW', 'RIVEREN', 'BBPANZU', 'PESSY'
 	];
-	final allowedKeys:String = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-	var easterEggKeysBuffer:String = '';
+	public final allowedKeys:String = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+	public var easterEggKeysBuffer:String = '';
 	#end
 
-	var introVideo:FlxVideoSprite;
-	var showingIntro:Bool = false;
-	var introFinished:Bool = false;
-	var skipTimer:Float = 0;
-	var canSkip:Bool = true;
+	public var introVideo:FlxVideoSprite;
+	public var showingIntro:Bool = false;
+	public var introFinished:Bool = false;
+	public var skipTimer:Float = 0;
+	public var canSkip:Bool = true;
 
 	override public function create():Void
 	{

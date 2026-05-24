@@ -16,23 +16,23 @@ class CreditsState extends MusicBeatState
 	private var iconArray:Array<AttachedSprite> = [];
 	private var creditsStuff:Array<Array<String>> = [];
 
-	var bg:FlxSprite;
-	var bgOverlay:FlxSprite;
-	var descText:FlxText;
-	var descBg:FlxSprite;
-	var intendedColor:FlxColor;
-	var colorTween:FlxTween;
-	var scrollFactorGroup:FlxTypedGroup<FlxSprite>;
+	public var bg:FlxSprite;
+	public var bgOverlay:FlxSprite;
+	public var descText:FlxText;
+	public var descBg:FlxSprite;
+	public var intendedColor:FlxColor;
+	public var colorTween:FlxTween;
+	public var scrollFactorGroup:FlxTypedGroup<FlxSprite>;
 
-	var offsetThing:Float = -75;
-	var particleTimer:Float = 0;
-	var particles:Array<FlxSprite> = [];
-	var textAnimationTimer:FlxTimer = null;
+	public var offsetThing:Float = -75;
+	public var particleTimer:Float = 0;
+	public var particles:Array<FlxSprite> = [];
+	public var textAnimationTimer:FlxTimer = null;
 
-	var titleText:Alphabet;
-	var selectedBorder:FlxSprite;
-	var linkHint:FlxText;
-	var selectionGlow:FlxSprite;
+	public var titleText:Alphabet;
+	public var selectedBorder:FlxSprite;
+	public var linkHint:FlxText;
+	public var selectionGlow:FlxSprite;
 
 	override function create()
 	{

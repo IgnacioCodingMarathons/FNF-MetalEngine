@@ -27,24 +27,38 @@ import backend.Controls;
 
 class PauseSubState extends MusicBeatSubstate
 {
-    var grpMenuShit:FlxTypedGroup<Alphabet>;
-    var menuItems:Array<String> = [];
-    var menuItemsOG:Array<String> = ['Resume', 'Restart Song', 'Chart Editor', 'Change Difficulty', 'Options', 'Exit to menu'];
-    var difficultyChoices = [];
-    var curSelected:Int = 0;
-    var pauseMusic:FlxSound;
-    var practiceText:FlxText;
-    var skipTimeText:FlxText;
-    var skipTimeTracker:Alphabet;
-    var curTime:Float = Math.max(0, Conductor.songPosition);
-    var missingTextBG:FlxSprite;
-    var missingText:FlxText;
-    var dateTimeText:FlxText;
+    public var grpMenuShit:FlxTypedGroup<Alphabet>;
+    public var menuItems:Array<String> = [];
+    public static var menuItemsOG:Array<String> = ['Resume', 'Restart Song', 'Chart Editor', 'Change Difficulty', 'Options', 'Exit to menu'];
+    public var difficultyChoices = [];
+    public var curSelected:Int = 0;
+    public var pauseMusic:FlxSound;
+    public var practiceText:FlxText;
+    public var skipTimeText:FlxText;
+    public var skipTimeTracker:Alphabet;
+    public var curTime:Float = Math.max(0, Conductor.songPosition);
+    public var missingTextBG:FlxSprite;
+    public var missingText:FlxText;
+    public var dateTimeText:FlxText;
     public static var songName:String = null;
-    var holdTime:Float = 0;
-    var cantUnpause:Float = 0.1;
+    public var holdTime:Float = 0;
+    public var cantUnpause:Float = 0.1;
 
 	override function create()
+	{
+		super.create();
+
+		var stop = callOnCompanionScript('onCreate', []);
+
+		if (stop != Function_Stop)
+		{
+			createV();
+		}
+		
+		callOnCompanionScript('onCreatePost', []);
+	}
+
+	function createV()
 	{
 		LocaleUtils.loadDeviceDateTimeSettings();
 		
@@ -167,10 +181,8 @@ class PauseSubState extends MusicBeatSubstate
 
 		addTouchPad(menuItems.contains('Skip Time') ? 'LEFT_FULL' : 'UP_DOWN', 'A');
 		addTouchPadCamera();
-
-		super.create();
 	}
-	
+
 	function getPauseSong()
 	{
 		var formattedSongName:String = (songName != null ? Paths.formatToSongPath(songName) : '');
@@ -182,12 +194,24 @@ class PauseSubState extends MusicBeatSubstate
 
 	override function update(elapsed:Float)
 	{
+		var stop = callOnCompanionScript('onUpdate', [elapsed]);
+
+		if (stop != Function_Stop)
+		{
+			updateV(elapsed);
+		}
+
+		super.update(elapsed);
+
+		callOnCompanionScript('onUpdatePost', [elapsed]);
+	}
+
+	function updateV(elapsed:Float)
+	{
 		cantUnpause -= elapsed;
 		if (pauseMusic.volume < 0.5)
 			pauseMusic.volume += 0.01 * elapsed;
 
-		super.update(elapsed);
-		
 		// Mantener elementos del menú centrados en cada frame
 		for (item in grpMenuShit.members)
 		{
@@ -419,8 +443,13 @@ class PauseSubState extends MusicBeatSubstate
 
 	override function destroy()
 	{
-		pauseMusic.destroy();
+		if (pauseMusic != null)
+		{
+			pauseMusic.destroy();
+			pauseMusic = null;
+		}
 		super.destroy();
+		callOnCompanionScript('onDestroy', []);
 	}
 
 	function changeSelection(change:Int = 0):Void

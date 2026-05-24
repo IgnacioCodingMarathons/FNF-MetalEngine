@@ -28,6 +28,9 @@ import sys.FileSystem;
 
 class MusicBeatSubstate extends BaseMusicBeatSubstate
 {
+	public static inline var Function_Continue:Int = 0;
+	public static inline var Function_Stop:Int = 1;
+
 	public static var instance:MusicBeatSubstate;
 	
 	// Variables map for substate-specific data
@@ -74,9 +77,6 @@ class MusicBeatSubstate extends BaseMusicBeatSubstate
 		if (!(this is psychlua.CustomSubstate) && MusicBeatState.stateScriptOverridesEnabled())
 			_loadCompanionScript();
 		#end
-		// Legacy midpoint create hook.
-		callOnCompanionScript('onCreate', []);
-		callOnCompanionScript('onCreatePost', []);
 	}
 	public static function getSubstate():MusicBeatSubstate
 	{
@@ -95,57 +95,32 @@ class MusicBeatSubstate extends BaseMusicBeatSubstate
 	{
 		// Call global script update
 		MusicBeatState.callOnGlobalScript('onSubstateUpdate', [elapsed]);
-		// Call MusicBeatSubstate-specific script
-		callOnMusicBeatSubstateScript('onUpdate', [elapsed]);
-		// Legacy pre-update hook
-		callOnCompanionScript('onUpdate', [elapsed]);
 
 		super.update(elapsed);
-
-		// Companion post-update
-		callOnCompanionScript('onUpdatePost', [elapsed]);
 	}
 
 	override public function stepHit():Void
 	{
 		// Call global script
 		MusicBeatState.callOnGlobalScript('onSubstateStepHit', [curStep]);
-		// Call MusicBeatSubstate-specific script
-		callOnMusicBeatSubstateScript('onStepHit', [curStep]);
-		// Legacy pre-step hook
-		callOnCompanionScript('onStepHit', [curStep]);
 
 		super.stepHit();
-
-		callOnCompanionScript('onStepHitPost', [curStep]);
 	}
 
 	override public function beatHit():Void
 	{
 		// Call global script
 		MusicBeatState.callOnGlobalScript('onSubstateBeatHit', [curBeat]);
-		// Call MusicBeatSubstate-specific script
-		callOnMusicBeatSubstateScript('onBeatHit', [curBeat]);
-		// Legacy pre-beat hook
-		callOnCompanionScript('onBeatHit', [curBeat]);
 
 		super.beatHit();
-
-		callOnCompanionScript('onBeatHitPost', [curBeat]);
 	}
 
 	override public function sectionHit():Void
 	{
 		// Call global script
 		MusicBeatState.callOnGlobalScript('onSubstateSectionHit', [curSection]);
-		// Call MusicBeatSubstate-specific script
-		callOnMusicBeatSubstateScript('onSectionHit', [curSection]);
-		// Legacy pre-section hook
-		callOnCompanionScript('onSectionHit', [curSection]);
 
 		super.sectionHit();
-
-		callOnCompanionScript('onSectionHitPost', [curSection]);
 	}
 
 	override function destroy()
@@ -155,13 +130,6 @@ class MusicBeatSubstate extends BaseMusicBeatSubstate
 			controls.isInSubstate = false;
 			instance = null;
 		}
-		#if HSCRIPT_ALLOWED
-		if (companionScript != null)
-		{
-			// Legacy destroy hook
-			callOnCompanionScript('onDestroy', []);
-		}
-		#end
 		#if LUA_ALLOWED
 		if (companionLuaScript != null)
 		{
@@ -170,7 +138,6 @@ class MusicBeatSubstate extends BaseMusicBeatSubstate
 		}
 		#end
 		super.destroy();
-		callOnCompanionScript('onDestroyPost', []);
 
 		#if HSCRIPT_ALLOWED
 		if (companionScript != null)
@@ -235,6 +202,7 @@ class MusicBeatSubstate extends BaseMusicBeatSubstate
 		try
 		{
 			companionScript = new HScript(null, path);
+			injectReturnConstants(companionScript);
 
 			// Expose the substate itself and its parent state
 			companionScript.set('game',           this);
@@ -317,134 +285,13 @@ class MusicBeatSubstate extends BaseMusicBeatSubstate
 		return ret;
 	}
 
-	public static function initMusicBeatSubstateScript():Void
+	#if HSCRIPT_ALLOWED
+	private function injectReturnConstants(script:HScript):Void
 	{
-		// Try to load Lua MusicBeatSubstate script first
-		#if (LUA_ALLOWED && sys)
-		if(musicBeatSubstateLuaScript == null)
-		{
-			#if MODS_ALLOWED
-			var luaPath:String = Paths.modFolders('scripts/MusicBeatSubState.lua');
-			if(!FileSystem.exists(luaPath))
-				luaPath = Paths.getSharedPath('scripts/MusicBeatSubState.lua');
-			#else
-			var luaPath:String = Paths.getSharedPath('scripts/MusicBeatSubState.lua');
-			#end
-			
-			if(FileSystem.exists(luaPath))
-			{
-				trace('Loading MusicBeatSubState Lua Script from: $luaPath');
-				musicBeatSubstateLuaScript = new FunkinLua(luaPath);
-				trace('MusicBeatSubState (Lua) initialized successfully');
-			}
-		}
-		#end
-		
-		// Then load HScript MusicBeatSubstate script
-		if(musicBeatSubstateScript != null) return; // Already initialized
-		
-		#if MODS_ALLOWED
-		var scriptPath:String = Paths.modFolders('scripts/MusicBeatSubState.hx');
-		if(scriptPath == null || !FileSystem.exists(scriptPath))
-			scriptPath = Paths.getSharedPath('scripts/MusicBeatSubState.hx');
-		#else
-		var scriptPath:String = Paths.getSharedPath('scripts/MusicBeatSubState.hx');
-		#end
-		
-		if(scriptPath == null || !FileSystem.exists(scriptPath))
-		{
-			trace('No MusicBeatSubState script found');
-			return;
-		}
-		
-		#if HSCRIPT_ALLOWED
-		try
-		{
-			trace('MusicBeatSubState: Loading script from: $scriptPath');
-			musicBeatSubstateScript = new HScript(null, scriptPath, null, true);
-			
-			if(musicBeatSubstateScript == null)
-			{
-				trace('MusicBeatSubState: Failed to create HScript instance');
-				return;
-			}
-			
-			// Set up helper functions
-			musicBeatSubstateScript.set('import', function(className:String) {
-				trace('MusicBeatSubState: Import is built-in, $className should already be available');
-			});
-			
-			// Parse and execute
-			musicBeatSubstateScript.parse(true);
-			musicBeatSubstateScript.execute();
-			
-			// Call onCreate if it exists
-			if (musicBeatSubstateScript.exists('onCreate'))
-			{
-				musicBeatSubstateScript.call('onCreate');
-				trace('MusicBeatSubState: onCreate() called successfully');
-			}
-			
-			trace('MusicBeatSubState script initialized successfully');
-		}
-		catch(e:IrisError)
-		{
-			try {
-				var errorMsg = Printer.errorToString(e, false);
-				trace('MusicBeatSubState Script Error: $errorMsg');
-				if(TraceDisplay.instance != null)
-					TraceDisplay.addHScriptError(errorMsg, scriptPath);
-			} catch(printerError:Dynamic) {
-				trace('MusicBeatSubState: Error while processing IrisError: $printerError');
-			}
-		}
-		catch(e:Dynamic)
-		{
-			trace('MusicBeatSubState Script Error (unexpected): $e');
-			#if HSCRIPT_ALLOWED
-			if(TraceDisplay.instance != null)
-				TraceDisplay.addHScriptError('Unexpected error: $e', scriptPath);
-			#end
-		}
-		#end
+		if (script == null) return;
+
+		script.set('Function_Continue', LuaUtils.Function_Continue);
+		script.set('Function_Stop', LuaUtils.Function_Stop);
 	}
-	
-	public static function callOnMusicBeatSubstateScript(funcToCall:String, args:Array<Dynamic> = null):Dynamic
-	{
-		var returnVal:Dynamic = LuaUtils.Function_Continue;
-		
-		// Call on Lua script first
-		#if LUA_ALLOWED
-		if(musicBeatSubstateLuaScript != null)
-		{
-			var ret:Dynamic = musicBeatSubstateLuaScript.call(funcToCall, args != null ? args : []);
-			if(ret != null && ret != LuaUtils.Function_Continue)
-				returnVal = ret;
-		}
-		#end
-		
-		// Then call on HScript
-		#if HSCRIPT_ALLOWED
-		if(musicBeatSubstateScript != null && musicBeatSubstateScript.exists(funcToCall))
-		{
-			try {
-				var callValue = musicBeatSubstateScript.call(funcToCall, args);
-				if(callValue != null && callValue.returnValue != null)
-				{
-					var myValue:Dynamic = callValue.returnValue;
-					if(myValue != LuaUtils.Function_Continue)
-						returnVal = myValue;
-				}
-			}
-			catch(e:Dynamic) {
-				trace('MusicBeatSubState Script Error calling $funcToCall: $e');
-				@:privateAccess
-				var fileName = musicBeatSubstateScript.origin != null ? musicBeatSubstateScript.origin : "MusicBeatSubState";
-				TraceDisplay.addHScriptError('Runtime error in $funcToCall: $e', fileName);
-			}
-		}
-		#end
-		
-		return returnVal;
-	}
+	#end
 }

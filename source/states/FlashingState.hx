@@ -9,9 +9,9 @@ class FlashingState extends MusicBeatState
 {
 	public static var leftState:Bool = false;
 
-	var isYes:Bool = true;
-	var texts:FlxTypedSpriteGroup<FlxText>;
-	var bg:FlxSprite;
+	public var isYes:Bool = true;
+	public var texts:FlxTypedSpriteGroup<FlxText>;
+	public var bg:FlxSprite;
 
 	override function create()
 	{
