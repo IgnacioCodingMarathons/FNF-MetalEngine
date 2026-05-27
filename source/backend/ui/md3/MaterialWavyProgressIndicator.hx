@@ -25,7 +25,7 @@ class MaterialWavyProgressIndicator extends FlxSpriteGroup
 	public var linearGapSize:Float = 4; // Pixels of separation between filled and unfilled segments.
 	public var linearShowStopDot:Bool = false; // Material stop indicator on determinate linear end.
 	public var linearStopDotSize:Float = 4;
-	public var linearHeightScale:Float = 1.0;
+	public var linearHeightScale(default, set):Float = 1.0;
 	public var linearWaveThicknessScale:Float = 1.0;
 	public var linearTrackThicknessScale:Float = 1.0;
 	public var circularEdgeGap:Float = 0; // Radians trimmed from both ends in determinate circular mode.
@@ -158,6 +158,20 @@ class MaterialWavyProgressIndicator extends FlxSpriteGroup
 		indeterminate = nextValue;
 		redrawDynamic();
 		return indeterminate;
+	}
+
+	function set_linearHeightScale(nextValue:Float):Float
+	{
+		linearHeightScale = Math.max(1.0, nextValue);
+		if (indicatorType == LINEAR && linearTrack != null && linearWave != null)
+		{
+			var width = Std.int(indicatorExtent);
+			var height = linearHeight();
+			linearTrack.makeGraphic(width, height, FlxColor.TRANSPARENT, true);
+			linearWave.makeGraphic(width, height, FlxColor.TRANSPARENT, true);
+		}
+		redrawDynamic();
+		return linearHeightScale;
 	}
 
 	function _onThemeChange():Void

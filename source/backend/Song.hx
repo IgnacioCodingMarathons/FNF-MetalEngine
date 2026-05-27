@@ -162,6 +162,7 @@ class Song
 
 	public static var chartPath:String;
 	public static var loadedSongName:String;
+	public static var lastDetectedSourceFormat:String = '';
 	public static function loadFromJson(jsonInput:String, ?folder:String):SwagSong
 	{
 		if(folder == null) folder = jsonInput;
@@ -174,21 +175,21 @@ class Song
 		#end
 		StageData.loadDirectory(PlayState.SONG);
 		
-		// Auto-save psych_v2 or non_formatted charts as psych_v1
+		// Auto-save psych_v2 -> psych_v1
 		#if MODS_ALLOWED
 		if(PlayState.SONG != null && _lastPath != null && sys.FileSystem.exists(_lastPath))
 		{
 			var needsSave:Bool = false;
 			var conversionMsg:String = '';
 			
-			if(PlayState.SONG.format == 'psych_v2')
+			if(lastDetectedSourceFormat != null && lastDetectedSourceFormat.startsWith('psych_v2'))
 			{
-				conversionMsg = 'psych_v2 → psych_v1';
+				conversionMsg = 'psych_v2 -> psych_v1';
 				needsSave = true;
 			}
-			else if(PlayState.SONG.format == 'non_formatted')
+			else if(lastDetectedSourceFormat == 'non_formatted')
 			{
-				conversionMsg = 'non_formatted → psych_v1';
+				conversionMsg = 'non_formatted -> psych_v1';
 				needsSave = true;
 			}
 			
@@ -257,6 +258,7 @@ class Song
 
 	public static function parseJSON(rawData:String, ?nameForError:String = null, ?convertTo:String = 'psych_v1'):SwagSong
 	{
+		lastDetectedSourceFormat = '';
 		var songJson:SwagSong = cast Json.parse(rawData);
 		if(Reflect.hasField(songJson, 'song'))
 		{
@@ -281,11 +283,12 @@ class Song
 				fmt = 'unknown';
 			}
 		}
+		lastDetectedSourceFormat = fmt;
 
-		// Auto-detect and convert psych_v2 format to psych_v1
+		// Auto-detect and convert psych_v2 -> psych_v1
 		if(fmt.startsWith('psych_v2'))
 		{
-			trace('Converting chart $nameForError from psych_v2 to psych_v1 format...');
+			trace('Converting chart $nameForError from psych_v2 -> psych_v1 format...');
 			songJson = downgradeFromV2(songJson);
 			songJson.format = 'psych_v1';
 			return songJson;
@@ -293,7 +296,7 @@ class Song
 
 		if(fmt == 'non_formatted')
 		{
-			trace('Converting chart $nameForError from non_formatted to psych_v1 format...');
+			trace('Converting chart $nameForError from non_formatted -> psych_v1 format...');
 			songJson.format = 'psych_v1';
 			convert(songJson);
 			return songJson;
@@ -571,3 +574,4 @@ class Song
 		return song;
 	}
 }
+
