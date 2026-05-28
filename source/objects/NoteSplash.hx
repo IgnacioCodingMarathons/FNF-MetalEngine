@@ -43,6 +43,7 @@ class NoteSplash extends FlxSprite
 	var noteDataMap:Map<Int, String> = new Map();
 
 	public static var defaultNoteSplash(default, never):String = "noteSplashes/noteSplashes";
+	public static var noRgbNoteSplash(default, never):String = "noteSplashesNoRGB/noteSplashes";
 	public static var configs:Map<String, NoteSplashConfig> = new Map();
 
 	public function new(?x:Float = 0, ?y:Float = 0, ?splash:String)
@@ -65,7 +66,7 @@ class NoteSplash extends FlxSprite
 
 		if(splash == null)
 		{
-			splash = defaultNoteSplash + getSplashSkinPostfix();
+			splash = getDefaultNoteSplashPath() + getSplashSkinPostfix();
 			if (PlayState.SONG != null && PlayState.SONG.splashSkin != null && PlayState.SONG.splashSkin.length > 0) splash = PlayState.SONG.splashSkin;
 		}
 
@@ -73,7 +74,7 @@ class NoteSplash extends FlxSprite
 		frames = Paths.getSparrowAtlas(texture);
 		if (frames == null)
 		{
-			texture = defaultNoteSplash + getSplashSkinPostfix();
+			texture = getDefaultNoteSplashPath() + getSplashSkinPostfix();
 			frames = Paths.getSparrowAtlas(texture);
 			if (frames == null)
 			{
@@ -197,7 +198,7 @@ class NoteSplash extends FlxSprite
 
 		if (!inEditor)
 		{
-			var loadedTexture:String = defaultNoteSplash + getSplashSkinPostfix();
+			var loadedTexture:String = getDefaultNoteSplashPath() + getSplashSkinPostfix();
 			if (note != null && note.noteSplashData.texture != null) loadedTexture = note.noteSplashData.texture;
 			else if (PlayState.SONG != null && PlayState.SONG.splashSkin != null && PlayState.SONG.splashSkin.length > 0) loadedTexture = PlayState.SONG.splashSkin;
 
@@ -365,6 +366,13 @@ class NoteSplash extends FlxSprite
 		if (ClientPrefs.data.splashSkin != ClientPrefs.defaultData.splashSkin)
 			skin = '-' + ClientPrefs.data.splashSkin.trim().toLowerCase().replace(' ', '-');
 		return skin;
+	}
+
+	public static function getDefaultNoteSplashPath():String
+	{
+		var preferred:String = ClientPrefs.data.noteRGB ? defaultNoteSplash : noRgbNoteSplash;
+		if(Paths.fileExists('images/' + preferred + '.png', IMAGE)) return preferred;
+		return defaultNoteSplash;
 	}
 
 	public static function createConfig():NoteSplashConfig

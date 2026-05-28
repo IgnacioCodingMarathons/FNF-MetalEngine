@@ -39,7 +39,7 @@ class StrumNote extends FlxSprite
 		if(PlayState.SONG != null && PlayState.SONG.arrowSkin != null && PlayState.SONG.arrowSkin.length > 1) skin = PlayState.SONG.arrowSkin;
 		else 
 		{
-			skin = Note.defaultNoteSkin;
+			skin = Note.getDefaultNoteSkinPath();
 		}
 
 		var customSkin:String = skin + Note.getNoteSkinPostfix();

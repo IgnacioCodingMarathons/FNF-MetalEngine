@@ -9,6 +9,7 @@ import shaders.RGBPalette.RGBShaderReference;
 import objects.StrumNote;
 
 import flixel.math.FlxRect;
+import flixel.math.FlxMath;
 
 using StringTools;
 
@@ -102,6 +103,7 @@ class Note extends FlxSprite
 	public static var swagWidth:Float = 160 * 0.7;
 	public static var colArray:Array<String> = ['purple', 'blue', 'green', 'red'];
 	public static var defaultNoteSkin(default, never):String = 'noteSkins/NOTE_assets';
+	public static var noRgbNoteSkin(default, never):String = 'noteSkinsNoRGB/NOTE_assets';
 
 	public var noteSplashData:NoteSplashData = {
 		disabled: false,
@@ -198,7 +200,7 @@ class Note extends FlxSprite
 	}
 
 	private function set_noteType(value:String):String {
-		noteSplashData.texture = PlayState.SONG != null ? PlayState.SONG.splashSkin : 'noteSplashes/noteSplashes';
+		noteSplashData.texture = PlayState.SONG != null ? PlayState.SONG.splashSkin : NoteSplash.getDefaultNoteSplashPath();
 		defaultRGB();
 
 		if(noteData > -1 && noteType != value) {
@@ -339,6 +341,23 @@ class Note extends FlxSprite
 		{
 			var newRGB:RGBPalette = new RGBPalette();
 			var arr:Array<FlxColor> = (!PlayState.isPixelStage) ? ClientPrefs.data.arrowRGB[noteData] : ClientPrefs.data.arrowRGBPixel[noteData];
+			if(!ClientPrefs.data.noteRGB)
+			{
+				var baseArr:Array<FlxColor> = (!PlayState.isPixelStage) ? ClientPrefs.defaultData.arrowRGB[noteData] : ClientPrefs.defaultData.arrowRGBPixel[noteData];
+				var hsvArr:Array<Float> = ClientPrefs.data.arrowHSV[noteData];
+				if(baseArr != null && hsvArr != null && hsvArr.length >= 3)
+				{
+					arr = [];
+					for(i in 0...3)
+					{
+						var baseColor:FlxColor = baseArr[i];
+						var hue:Int = FlxMath.wrap(Math.round(baseColor.hue + hsvArr[0]), 0, 360);
+						var sat:Float = FlxMath.bound(baseColor.saturation + (hsvArr[1] / 100), 0, 1);
+						var bright:Float = FlxMath.bound(baseColor.brightness + (hsvArr[2] / 100), 0, 1);
+						arr.push(FlxColor.fromHSB(hue, sat, bright));
+					}
+				}
+			}
 			
 			if (arr != null && noteData > -1 && noteData <= arr.length)
 			{
@@ -372,7 +391,7 @@ class Note extends FlxSprite
 			skin = PlayState.SONG != null ? PlayState.SONG.arrowSkin : null;
 			if(skin == null || skin.length < 1)
 			{
-				skin = defaultNoteSkin + postfix;
+				skin = getDefaultNoteSkinPath() + postfix;
 			}
 		}
 		else rgbShader.enabled = false;
@@ -454,6 +473,13 @@ class Note extends FlxSprite
 		if(ClientPrefs.data.noteSkin != ClientPrefs.defaultData.noteSkin)
 			skin = '-' + ClientPrefs.data.noteSkin.trim().toLowerCase().replace(' ', '_');
 		return skin;
+	}
+
+	public static function getDefaultNoteSkinPath():String
+	{
+		var preferred:String = ClientPrefs.data.noteRGB ? defaultNoteSkin : noRgbNoteSkin;
+		if(Paths.fileExists('images/' + preferred + '.png', IMAGE)) return preferred;
+		return defaultNoteSkin;
 	}
 
 	function loadNoteAnims() {

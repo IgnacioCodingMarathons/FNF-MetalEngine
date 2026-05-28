@@ -18,7 +18,7 @@ class SustainSplash extends FlxSprite
 		x = -50000;
 
 		// Verificar si el archivo existe antes de cargarlo
-		var atlasPath = 'holdCovers/holdCover-Vanilla';
+		var atlasPath = getHoldCoverPath();
 		if (Paths.fileExists('images/$atlasPath.png', IMAGE) && Paths.fileExists('images/$atlasPath.xml', TEXT))
 		{
 			frames = Paths.getSparrowAtlas(atlasPath);
@@ -32,6 +32,23 @@ class SustainSplash extends FlxSprite
 			trace('Hold splash atlas not found: $atlasPath');
 			makeGraphic(1, 1, 0x00000000); // Crear una imagen transparente
 		}
+	}
+
+	function getHoldCoverPath():String
+	{
+		if(!ClientPrefs.data.noteRGB)
+		{
+			var noRgbCandidates:Array<String> = [
+				'holdCoversNoRGB/holdCover-Purple',
+				'holdCoversNoRGB/holdCover-Blue',
+				'holdCoversNoRGB/holdCover-Green',
+				'holdCoversNoRGB/holdCover-Red'
+			];
+			for(path in noRgbCandidates)
+				if (Paths.fileExists('images/$path.png', IMAGE) && Paths.fileExists('images/$path.xml', TEXT))
+					return path;
+		}
+		return 'holdCovers/holdCover-Vanilla';
 	}
 
 	override function update(elapsed)
