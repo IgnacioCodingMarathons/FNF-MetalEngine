@@ -1,7 +1,6 @@
 package psychlua;
 
 import openfl.Lib;
-import openfl.system.Capabilities;
 import flixel.FlxG;
 import flixel.math.FlxMath;
 import flixel.tweens.FlxTween;
@@ -19,75 +18,103 @@ import lenin.slushithings.windows.WindowsAPI;
 // Based on Slushi Engine implementation
 
 class WindowTweens {
-    public static function winTweenX(tag:String, targetX:Int, duration:Float = 1, ease:String = "linear", ?onComplete:Void->Void) {
+    public static function winTweenX(tag:String, targetX:Int, duration:Float = 1, ease:String = "linear", ?onComplete:Void->Void)
+    {
         #if windows
         var window = Lib.current.stage.window;
-        var startX = window.x;
         var variables = MusicBeatState.getVariables();
-        if(tag != null) {
+
+        if(tag != null)
+        {
             var originalTag:String = tag;
             tag = LuaUtils.formatVariable('wintween_$tag');
-            var tween:NumTween = FlxTween.num(startX, targetX, duration, {
+
+            FlxTween.cancelTweensOf(window, ["x"]);
+
+            var tween = FlxTween.tween(window, {
+                x: targetX
+            }, duration, {
                 ease: LuaUtils.getTweenEaseByString(ease),
-                onComplete: function(_) {
+                onComplete: function(_)
+                {
                     variables.remove(tag);
-                    if (onComplete != null) onComplete();
-                    if(PlayState.instance != null) PlayState.instance.callOnLuas('onTweenCompleted', [originalTag, 'window.x']);
+
+                    if (onComplete != null)
+                        onComplete();
+
+                    if(PlayState.instance != null)
+                        PlayState.instance.callOnLuas('onTweenCompleted', [originalTag, 'window.x']);
                 }
             });
-            tween.onUpdate = function(t:FlxTween) {
-                window.x = Std.int(tween.value);
-            };
+
             variables.set(tag, tween);
             return tag;
-        } else {
-            var tween:NumTween = FlxTween.num(startX, targetX, duration, {
+        }
+        else
+        {
+            FlxTween.tween(window, {
+                x: targetX
+            }, duration, {
                 ease: LuaUtils.getTweenEaseByString(ease),
-                onComplete: function(_) {
-                    if (onComplete != null) onComplete();
+                onComplete: function(_)
+                {
+                    if (onComplete != null)
+                        onComplete();
                 }
             });
-            tween.onUpdate = function(t:FlxTween) {
-                window.x = Std.int(tween.value);
-            };
         }
         #end
+
         return null;
     }
 
-    public static function winTweenY(tag:String, targetY:Int, duration:Float = 1, ease:String = "linear", ?onComplete:Void->Void) {
+    public static function winTweenY(tag:String, targetY:Int, duration:Float = 1, ease:String = "linear", ?onComplete:Void->Void)
+    {
         #if windows
         var window = Lib.current.stage.window;
-        var startY = window.y;
         var variables = MusicBeatState.getVariables();
-        if(tag != null) {
+    
+        if(tag != null)
+        {
             var originalTag:String = tag;
             tag = LuaUtils.formatVariable('wintween_$tag');
-            var tween:NumTween = FlxTween.num(startY, targetY, duration, {
+        
+            FlxTween.cancelTweensOf(window, ["y"]);
+        
+            var tween = FlxTween.tween(window, {
+                y: targetY
+            }, duration, {
                 ease: LuaUtils.getTweenEaseByString(ease),
-                onComplete: function(_) {
+                onComplete: function(_)
+                {
                     variables.remove(tag);
-                    if (onComplete != null) onComplete();
-                    if(PlayState.instance != null) PlayState.instance.callOnLuas('onTweenCompleted', [originalTag, 'window.y']);
+                
+                    if (onComplete != null)
+                        onComplete();
+                
+                    if(PlayState.instance != null)
+                        PlayState.instance.callOnLuas('onTweenCompleted', [originalTag, 'window.y']);
                 }
             });
-            tween.onUpdate = function(t:FlxTween) {
-                window.y = Std.int(tween.value);
-            };
+        
             variables.set(tag, tween);
             return tag;
-        } else {
-            var tween:NumTween = FlxTween.num(startY, targetY, duration, {
+        }
+        else
+        {
+            FlxTween.tween(window, {
+                y: targetY
+            }, duration, {
                 ease: LuaUtils.getTweenEaseByString(ease),
-                onComplete: function(_) {
-                    if (onComplete != null) onComplete();
+                onComplete: function(_)
+                {
+                    if (onComplete != null)
+                        onComplete();
                 }
             });
-            tween.onUpdate = function(t:FlxTween) {
-                window.y = Std.int(tween.value);
-            };
         }
         #end
+    
         return null;
     }
     
@@ -158,8 +185,8 @@ class WindowTweens {
     public static function centerWindow() {
         #if windows
         var window = Lib.current.stage.window;
-        var screenWidth = Capabilities.screenResolutionX;
-        var screenHeight = Capabilities.screenResolutionY;
+        var screenWidth = Lib.application.window.stage.fullScreenWidth;
+        var screenHeight = Lib.application.window.stage.fullScreenHeight;
         window.x = Std.int((screenWidth - window.width) / 2);
         window.y = Std.int((screenHeight - window.height) / 2);
         #end
@@ -205,8 +232,8 @@ class WindowTweens {
     public static function randomizeWindowPosition(minX:Int = 0, maxX:Int = -1, minY:Int = 0, maxY:Int = -1) {
         #if windows
         var window = Lib.current.stage.window;
-        var screenWidth = Capabilities.screenResolutionX;
-        var screenHeight = Capabilities.screenResolutionY;
+        var screenWidth = Lib.application.window.stage.fullScreenWidth;
+        var screenHeight = Lib.application.window.stage.fullScreenHeight;
         
         if (maxX == -1) maxX = Std.int(screenWidth - window.width);
         if (maxY == -1) maxY = Std.int(screenHeight - window.height);
@@ -224,8 +251,8 @@ class WindowTweens {
 
     public static function getScreenResolution():{width:Int, height:Int} {
         return {
-            width: Std.int(Capabilities.screenResolutionX),
-            height: Std.int(Capabilities.screenResolutionY)
+            width: Std.int(Lib.application.window.stage.fullScreenWidth),
+            height: Std.int(Lib.application.window.stage.fullScreenHeight)
         };
     }
 
@@ -284,27 +311,30 @@ class WindowTweens {
         #end
     }
 
-    public static function winTweenSize(targetW:Int, targetH:Int, duration:Float = 1, ease:String = "linear", ?onComplete:Void->Void) {
+    public static function winTweenSize(targetW:Int, targetH:Int, duration:Float = 1, ease:String = "linear", ?onComplete:Void->Void)
+    {
         #if windows
-        var window = Lib.current.stage.window;
-        var startW = window.width;
-        var startH = window.height;
+        var window = Lib.application.window;
 
-        FlxG.scaleMode = new flixel.system.scaleModes.RatioScaleMode();
+        FlxTween.cancelTweensOf(window);
 
-        var tween:NumTween = FlxTween.num(0, 1, duration, {
+        FlxG.scaleMode = new RatioScaleMode(true);
+
+        FlxTween.tween(window, {
+            width: targetW,
+            height: targetH
+        }, duration, {
             ease: LuaUtils.getTweenEaseByString(ease),
-            onComplete: function(_) {
-                if (onComplete != null) onComplete();
+            onComplete: function(_)
+            {
+                trace("FINAL");
+                trace("Target: " + targetW + "x" + targetH);
+                trace("Window: " + window.width + "x" + window.height);
+
+                if (onComplete != null)
+                    onComplete();
             }
         });
-        tween.onUpdate = function(t:FlxTween) {
-            window.resize(
-                Std.int(FlxMath.lerp(startW, targetW, tween.value)),
-                Std.int(FlxMath.lerp(startH, targetH, tween.value))
-            );
-            FlxG.resizeGame(window.width, window.height);
-        };
         #end
     }
 
@@ -323,8 +353,8 @@ class WindowTweens {
             FlxTween.tween(window, {
                 width: winX,
                 height: winY,
-                y: Math.floor((Capabilities.screenResolutionY / 2) - (winY / 2)),
-                x: Math.floor((Capabilities.screenResolutionX / 2) - (winX / 2)) + (Capabilities.screenResolutionX * Math.floor(window.x / (Capabilities.screenResolutionX)))
+                y: Math.floor((Lib.application.window.stage.fullScreenHeight / 2) - (winY / 2)),
+                x: Math.floor((Lib.application.window.stage.fullScreenWidth / 2) - (winX / 2)) + (Lib.application.window.stage.fullScreenWidth * Math.floor(window.x / (Lib.application.window.stage.fullScreenWidth)))
             }, 0.4, {
                 ease: FlxEase.quadInOut,
                 onComplete: function(_) {
@@ -334,10 +364,16 @@ class WindowTweens {
                 }
             });
         } else {
+            trace("resizeCenter target: " + width + "x" + height);
             FlxG.resizeWindow(width, height);
-            window.y = Math.floor((Capabilities.screenResolutionY / 2) - (winY / 2));
-            window.x = Std.int(Math.floor((Capabilities.screenResolutionX / 2) - (winX / 2)) + (Capabilities.screenResolutionX * Math.floor(window.x / (Capabilities.screenResolutionX))));
+            trace("resizeCenter result: " + window.width + "x" + window.height);
+            window.y = Math.floor((Lib.application.window.stage.fullScreenHeight / 2) - (winY / 2));
+            window.x = Std.int(Math.floor((Lib.application.window.stage.fullScreenWidth / 2) - (winX / 2)) + (Lib.application.window.stage.fullScreenWidth * Math.floor(window.x / (Lib.application.window.stage.fullScreenWidth))));
         }
+        trace("Stage: " +
+                Lib.current.stage.stageWidth +
+                "x" +
+                Lib.current.stage.stageHeight);
         FlxG.scaleMode = new RatioScaleMode(true);
         window.resizable = width == 1280;
         #end
