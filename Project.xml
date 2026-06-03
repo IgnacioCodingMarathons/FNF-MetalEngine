@@ -234,7 +234,14 @@
 
 	<!-- _________________________________ Custom _______________________________ -->
 
-	<assets path='art/icons/iconOG.png' rename='icon.png' if="linux || mac" />
+	<!-- Desktop and other platforms icons (excluding Android) -->
+	<icon path="art/icons/icon16.png" size='16' unless="android"/>
+	<icon path="art/icons/icon32.png" size='32' unless="android"/>
+	<icon path="art/icons/icon64.png" size='64' unless="android"/>
+	<icon path="art/icons/iconOG.png" unless="android"/>
+
+	<!-- Only iOS icon -->
+	<icon path="art/icons/iconALT.png" if="ios"/>
 	
 	<icon path="art/icons/iOS/bf-iOS-Default-20x20@2x.png" size='40' if="ios" />
 	<icon path="art/icons/iOS/bf-iOS-Default-20x20@3x.png" size='60' if="ios" />
