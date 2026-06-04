@@ -12,6 +12,7 @@ class OptionsState extends MusicBeatState
 		'Graphics',
 		'Visuals',
 		'Gameplay',
+		'Legacy',
 		#if MODCHARTS_NOTITG_ALLOWED 'Modchart' #end
 		#if TRANSLATIONS_ALLOWED , 'Language' #end,
 		#if mobile 'Mobile Options' #end
@@ -40,6 +41,8 @@ class OptionsState extends MusicBeatState
 				openSubState(new options.VisualsSettingsSubState());
 			case 'Gameplay':
 				openSubState(new options.GameplaySettingsSubState());
+			case 'Legacy':
+				openSubState(new options.LegacySettingsSubState());
 			case 'Modchart':
 				openSubState(new options.ModchartSettingsSubState());
 			case 'Adjust Delay and Combo':

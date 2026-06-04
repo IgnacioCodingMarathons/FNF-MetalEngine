@@ -280,6 +280,8 @@ class PlayState extends MusicBeatState
 	public var perfectMode:Bool = false; // Perfect Mode - miss on anything below Sick
 	public var playOpponent:Bool = false; // Opponent Mode - play as opponent
 	public var noDropPenalty:Bool = false; // Hold drops don't cause misses
+	public var opponentDrain:Bool = false; // Opponent notes drain player health
+	public var OPPONENT_DRAIN_FLOOR:Float = 0.2;
 	public var pressMissDamage:Float = 0.05;
 
 	public var botplaySine:Float = 0;
@@ -551,6 +553,7 @@ class PlayState extends MusicBeatState
 		perfectMode = ClientPrefs.getGameplaySetting('perfect');
 		playOpponent = ClientPrefs.getGameplaySetting('opponentplay');
 		noDropPenalty = ClientPrefs.getGameplaySetting('nodroppenalty');
+		opponentDrain = ClientPrefs.getGameplaySetting('opponentdrain');
 		cpuControlled = ClientPrefs.getGameplaySetting('botplay');
 		guitarHeroSustains = ClientPrefs.data.guitarHeroSustains;
 		showCombo = ClientPrefs.data.showCombo;
@@ -2078,9 +2081,34 @@ class PlayState extends MusicBeatState
 		// Formateo estándar (sin soporte para >100%)
 		var percentDisplay:String = Std.string(percent) + '%';
 		
-		var str:String = percentDisplay + ' / ' + ratingName + ' [' + ratingFC + ']';
+		var str:String = '';
 	
 		var scoreStr:String = ClientPrefs.data.abbreviateScore ? abbreviateScore(songScore) : Std.string(songScore);
+
+		if (ClientPrefs.data.usePsychScoreText)
+		{
+			str = Language.getPhrase('rating_$ratingName', ratingName);
+			if (totalPlayed != 0)
+				str += ' (${percent}%) - ' + Language.getPhrase(ratingFC);
+
+			var psychScore:String;
+			if(!instakillOnMiss)
+				psychScore = Language.getPhrase('score_text_legacy', 'Score: {1} | Misses: {2} | Rating: {3}', [scoreStr, songMisses, str]);
+			else
+				psychScore = Language.getPhrase('score_text_instakill_legacy', 'Score: {1} | Rating: {2}', [scoreStr, str]);
+
+			if (scoreTxt.text != lastScoreTxtContent && scoreTxt.text != psychScore)
+				scoreTxtOverridden = true;
+
+			if (!scoreTxtOverridden)
+			{
+				scoreTxt.text = psychScore;
+				lastScoreTxtContent = psychScore;
+			}
+			return;
+		}
+
+		str = percentDisplay + ' / ' + ratingName + ' [' + ratingFC + ']';
 
 		var tempScore:String;
 		if(!instakillOnMiss)
@@ -2217,6 +2245,9 @@ class PlayState extends MusicBeatState
 	}
 
 	public function doTimeBump():Void {
+		if (!ClientPrefs.data.timeBump)
+			return;
+
 		if(timeTxtTween != null)
 			timeTxtTween.cancel();
 
@@ -2900,7 +2931,19 @@ class PlayState extends MusicBeatState
 		}
 
 		if (healthBar.bounds.max != null && health > healthBar.bounds.max)
-			health = healthBar.bounds.max;
+		{
+			if (!ClientPrefs.data.smoothHPBug)
+			{
+				health = healthBar.bounds.max;
+			}
+			else if (shouldRelaxOverflowHealth())
+			{
+				var springBack:Float = Math.min(1, elapsed * 3.6);
+				health = FlxMath.lerp(health, healthBar.bounds.max, springBack);
+				if (health - healthBar.bounds.max < 0.001)
+					health = healthBar.bounds.max;
+			}
+		}
 
 		updateIconsScale(elapsed);
 		updateIconsPosition();
@@ -3478,6 +3521,37 @@ class PlayState extends MusicBeatState
 
 	public var isDead:Bool = false; //Don't mess with this on Lua!!!
 	public var gameOverTimer:FlxTimer;
+	function shouldRelaxOverflowHealth():Bool
+	{
+		var canRelax:Bool = ClientPrefs.data.smoothHPBug && generatedMusic && breakTimerNextNoteTime <= 0;
+
+		if (canRelax)
+		{
+			for (note in notes)
+			{
+				if (note != null && note.mustPress && !note.wasGoodHit && note.strumTime >= Conductor.songPosition - 5)
+				{
+					canRelax = false;
+					break;
+				}
+			}
+		}
+
+		if (canRelax)
+		{
+			for (pending in unspawnNotes)
+			{
+				if (pending != null && pending.mustPress && pending.strumTime >= Conductor.songPosition - 5)
+				{
+					canRelax = false;
+					break;
+				}
+			}
+		}
+
+		return canRelax;
+	}
+
 	function doDeathCheck(?skipHealthCheck:Bool = false) {
 		if (((skipHealthCheck && instakillOnMiss) || health <= 0) && !practiceMode && !isDead && gameOverTimer == null)
 		{
@@ -5110,6 +5184,9 @@ class PlayState extends MusicBeatState
 		if(opponentVocals.length <= 0) vocals.volume = 1;
 		strumPlayAnim(true, Std.int(Math.abs(note.noteData)), Conductor.stepCrochet * 1.25 / 1000 / playbackRate);
 		note.hitByOpponent = true;
+
+		if (opponentDrain && !note.isSustainNote && !practiceMode && health > OPPONENT_DRAIN_FLOOR)
+			health = Math.max(OPPONENT_DRAIN_FLOOR, health - note.hitHealth * healthLoss);
 		
 		stagesFunc(function(stage:BaseStage) stage.opponentNoteHit(note));
 		var result:Dynamic = callOnLuas('opponentNoteHit', [notes.members.indexOf(note), Math.abs(note.noteData), note.noteType, note.isSustainNote]);

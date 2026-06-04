@@ -151,6 +151,12 @@ class VisualsSettingsSubState extends BaseOptionsMenu
 			'scoreZoom',
 			BOOL);
 		addOption(option);
+
+		var option:Option = new Option('Time Text Bump',
+			'If unchecked, disables the time text bump animation on beat.',
+			'timeBump',
+			BOOL);
+		addOption(option);
 		
 		var option:Option = new Option('Abbreviate Score',
 			'If enabled, the score will be abbreviated (e.g. 10.00K, 1.00M).',
@@ -173,6 +179,12 @@ class VisualsSettingsSubState extends BaseOptionsMenu
 		var option:Option = new Option('Smooth Health Bar',
 			'If checked, the health bar will move smoothly instead of instantly.',
 			'smoothHealthBar',
+			BOOL);
+		addOption(option);
+
+		var option:Option = new Option('Health Bar Overflow',
+			'If checked, health can exceed the bar limit and icons can move outside the edges.',
+			'smoothHPBug',
 			BOOL);
 		addOption(option);
 		
