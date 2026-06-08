@@ -215,8 +215,6 @@ class PauseSubState extends MusicBeatSubstate
 		// Mantener elementos del menú centrados en cada frame
 		for (item in grpMenuShit.members)
 		{
-			item.screenCenter(X);
-
 			// Mover elementos más de 2 posiciones arriba hacia arriba
 			if (item.targetY < -1)
 			{
@@ -487,7 +485,6 @@ class PauseSubState extends MusicBeatSubstate
 			var item = new Alphabet(0, 320, Language.getPhrase('pause_$str', str), true);
 			item.isMenuItem = true;
 			item.targetY = num;
-			item.screenCenter(X); // Centrar horizontalmente
 			grpMenuShit.add(item);
 
 			if(str == 'Skip Time')

@@ -45,6 +45,7 @@ class NoteSplash extends FlxSprite
 	public static var defaultNoteSplash(default, never):String = "noteSplashes/noteSplashes";
 	public static var noRgbNoteSplash(default, never):String = "noteSplashesNoRGB/noteSplashes";
 	public static var configs:Map<String, NoteSplashConfig> = new Map();
+	static var framesCache:Map<String, Dynamic> = new Map();
 
 	public function new(?x:Float = 0, ?y:Float = 0, ?splash:String)
 	{
@@ -71,15 +72,39 @@ class NoteSplash extends FlxSprite
 		}
 
 		texture = splash;
-		frames = Paths.getSparrowAtlas(texture);
+		var atlasPath:String = 'images/$texture';
+		if (framesCache.exists(atlasPath))
+			frames = framesCache.get(atlasPath);
+		else
+		{
+			frames = Paths.getSparrowAtlas(texture);
+			if (frames != null)
+				framesCache.set(atlasPath, frames);
+		}
 		if (frames == null)
 		{
 			texture = getDefaultNoteSplashPath() + getSplashSkinPostfix();
-			frames = Paths.getSparrowAtlas(texture);
+			atlasPath = 'images/$texture';
+			if (framesCache.exists(atlasPath))
+				frames = framesCache.get(atlasPath);
+			else
+			{
+				frames = Paths.getSparrowAtlas(texture);
+				if (frames != null)
+					framesCache.set(atlasPath, frames);
+			}
 			if (frames == null)
 			{
 				texture = defaultNoteSplash;
-				frames = Paths.getSparrowAtlas(texture);
+				atlasPath = 'images/$texture';
+				if (framesCache.exists(atlasPath))
+					frames = framesCache.get(atlasPath);
+				else
+				{
+					frames = Paths.getSparrowAtlas(texture);
+					if (frames != null)
+						framesCache.set(atlasPath, frames);
+				}
 			}
 		}
 
@@ -187,6 +212,12 @@ class NoteSplash extends FlxSprite
 
 		this.config = tempConfig;
 		configs.set(path, this.config);
+	}
+
+	public static function warmupSplashSkin(?splash:String):Void
+	{
+		var preview:NoteSplash = new NoteSplash(0, 0, splash);
+		preview.kill();
 	}
 
 	public function spawnSplashNote(?x:Float = 0, ?y:Float = 0, ?noteData:Int = 0, ?note:Note, ?randomize:Bool = true)

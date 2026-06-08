@@ -1,27 +1,6 @@
-/*
- * Copyright (C) 2025 Mobile Porting Team
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- */
-
 package mobile.backend;
 
+import lime.system.System as LimeSystem;
 import haxe.io.Path;
 
 /**
@@ -31,10 +10,15 @@ import haxe.io.Path;
 class StorageUtil
 {
 	#if sys
-	public static function getStorageDirectory():String
+	private static final rootDir:String = LimeSystem.applicationStorageDirectory;
+	private static final publicFolderName:String = '.PlusEngine';
+	private static final legacyPublicFolderName:String = 'PlusEngine';
+	private static final androidPackageName:String = 'com.leninasto.plusengine';
+
+	public static function getStorageDirectory(?force:Bool = false):String
 	{
-		return #if android 
-			Path.addTrailingSlash(AndroidContext.getExternalFilesDir()) 
+		return #if android
+			resolveStorageDirectory(force)
 		#elseif ios 
 			lime.system.System.documentsDirectory 
 		#else 
@@ -42,10 +26,25 @@ class StorageUtil
 		#end;
 	}
 
+	public static function getModsListPath():String
+	{
+		return Path.join([getStorageDirectory(), 'modsList.txt']);
+	}
+
+	public static function getSavesDirectory():String
+	{
+		return Path.addTrailingSlash(Path.join([getStorageDirectory(), 'saves']));
+	}
+
+	public static function getLogsDirectory():String
+	{
+		return Path.addTrailingSlash(Path.join([getStorageDirectory(), 'logs']));
+	}
+
 	public static function getSMDirectory():String
 	{
 		final baseDir = #if android 
-			getExternalStorageDirectory() 
+			getStorageDirectory()
 		#else 
 			'./' 
 		#end;
@@ -54,13 +53,7 @@ class StorageUtil
 
 	public static function saveContent(fileName:String, fileData:String, ?alert:Bool = true):Void
 	{
-		final baseDir = #if android 
-			getExternalStorageDirectory() 
-		#else 
-			Sys.getCwd() 
-		#end;
-		
-		final folder = Path.join([baseDir, 'saves']);
+		final folder = getSavesDirectory();
 		final filePath = Path.join([folder, fileName]);
 		
 		try
@@ -83,13 +76,153 @@ class StorageUtil
 	}
 
 	#if android
-	public static function getExternalStorageDirectory():String
+	private static function getStorageTypeFilePath():String
+	{
+		return Path.join([rootDir, 'storagetype.txt']);
+	}
+
+	private static function normalizeStorageType(storageType:String):String
+	{
+		return switch (storageType)
+		{
+			case null, '', 'EXTERNAL_DATA': 'INTERNAL';
+			case 'EXTERNAL': 'EXTERNAL';
+			default: 'INTERNAL';
+		}
+	}
+
+	private static function readStorageType():String
+	{
+		final storageTypePath = getStorageTypeFilePath();
+		var storageType = normalizeStorageType(ClientPrefs.data.storageType);
+
+		try
+		{
+			if (!FileSystem.exists(storageTypePath))
+			{
+				File.saveContent(storageTypePath, storageType);
+			}
+			else
+			{
+				storageType = normalizeStorageType(File.getContent(storageTypePath));
+			}
+
+			if (ClientPrefs.data.storageType != storageType)
+			{
+				ClientPrefs.data.storageType = storageType;
+				File.saveContent(storageTypePath, storageType);
+			}
+		}
+		catch (e:Dynamic)
+		{
+			trace('Failed to read storage type, using current preference: ${Std.string(e)}');
+		}
+
+		return storageType;
+	}
+
+	public static function saveStorageTypePreference(storageType:String):Void
+	{
+		final normalizedStorageType = normalizeStorageType(storageType);
+		try
+		{
+			File.saveContent(getStorageTypeFilePath(), normalizedStorageType);
+			ClientPrefs.data.storageType = normalizedStorageType;
+		}
+		catch (e:Dynamic)
+		{
+			trace('Failed to save storage type preference: ${Std.string(e)}');
+		}
+	}
+
+	private static function resolveStorageDirectory(force:Bool = false):String
+	{
+		final storageType = readStorageType();
+		final path = if (storageType == 'EXTERNAL')
+		{
+			force ? getForcedPublicStorageDirectory() : getPublicStorageDirectory();
+		}
+		else
+		{
+			force ? getForcedInternalStorageDirectory() : getInternalStorageDirectory();
+		}
+
+		return Path.addTrailingSlash(path);
+	}
+
+	public static function getInternalStorageDirectory():String
+	{
+		final path = AndroidContext.getExternalFilesDir();
+		return (path != null && path.length > 0) ? path : getForcedInternalStorageDirectory();
+	}
+
+	private static function getForcedInternalStorageDirectory():String
+	{
+		return '/storage/emulated/0/Android/data/$androidPackageName/files';
+	}
+
+	public static function getPublicStorageDirectory():String
 	{
 		var basePath = AndroidEnvironment.getExternalStorageDirectory();
-		if (basePath == null || basePath == '') {
-			basePath = '/sdcard';
-		}
-		return Path.join([basePath, '.PlusEngine']);
+		if (basePath == null || basePath == '')
+			basePath = '/storage/emulated/0';
+
+		return Path.join([basePath, publicFolderName]);
+	}
+
+	private static function getForcedPublicStorageDirectory():String
+	{
+		return '/storage/emulated/0/$publicFolderName';
+	}
+
+	public static function getExternalStorageDirectory():String
+	{
+		return getPublicStorageDirectory();
+	}
+
+	public static function useExternalModsStorage():Bool
+	{
+		return readStorageType() == 'EXTERNAL';
+	}
+
+	public static function getPublicModsDirectory():String
+	{
+		return Path.addTrailingSlash(Path.join([getPublicStorageDirectory(), 'mods']));
+	}
+
+	public static function getScopedModsDirectory():String
+	{
+		return Path.addTrailingSlash(Path.join([getInternalStorageDirectory(), 'mods']));
+	}
+
+	public static function getPublicModsDirectoryCandidates():Array<String>
+	{
+		var roots:Array<String> = [];
+
+		addModsDirectoryCandidate(roots, getPublicModsDirectory());
+
+		var basePath = AndroidEnvironment.getExternalStorageDirectory();
+		if (basePath == null || basePath == '')
+			basePath = '/storage/emulated/0';
+
+		addModsDirectoryCandidate(roots, Path.join([basePath, legacyPublicFolderName, 'mods']));
+		addModsDirectoryCandidate(roots, Path.join([basePath, publicFolderName, 'mods']));
+		addModsDirectoryCandidate(roots, getScopedModsDirectory());
+
+		return roots;
+	}
+
+	private static function addModsDirectoryCandidate(list:Array<String>, path:String):Void
+	{
+		if (path == null || path.length == 0)
+			return;
+
+		var normalizedPath = path.replace('\\', '/');
+		if (!normalizedPath.endsWith('/'))
+			normalizedPath += '/';
+
+		if (!list.contains(normalizedPath))
+			list.push(normalizedPath);
 	}
 
 	private static function ensureDirectory(path:String):Bool
@@ -111,11 +244,13 @@ class StorageUtil
 
 	private static function hasRequiredPermissions():Bool
 	{
+		if (readStorageType() == 'INTERNAL')
+			return true;
+
 		final granted = AndroidPermissions.getGrantedPermissions();
 		
 		if (AndroidVersion.SDK_INT >= AndroidVersionCode.TIRAMISU) {
-			return granted.contains('android.permission.READ_MEDIA_IMAGES') ||
-				   granted.contains('android.permission.READ_MEDIA_VIDEO');
+			return AndroidEnvironment.isExternalStorageManager();
 		} else {
 			return granted.contains('android.permission.READ_EXTERNAL_STORAGE') ||
 				   granted.contains('android.permission.WRITE_EXTERNAL_STORAGE');
@@ -124,28 +259,27 @@ class StorageUtil
 
 	public static function requestPermissions():Void
 	{
-		if (AndroidVersion.SDK_INT >= AndroidVersionCode.TIRAMISU) {
-			AndroidPermissions.requestPermissions([
-				'READ_MEDIA_IMAGES', 
-				'READ_MEDIA_VIDEO', 
-				'READ_MEDIA_AUDIO'
-			]);
-		} else {
-			AndroidPermissions.requestPermissions([
-				'READ_EXTERNAL_STORAGE', 
-				'WRITE_EXTERNAL_STORAGE'
-			]);
-		}
+		if (useExternalModsStorage())
+		{
+			if (AndroidVersion.SDK_INT < AndroidVersionCode.TIRAMISU)
+			{
+				AndroidPermissions.requestPermissions([
+					'READ_EXTERNAL_STORAGE',
+					'WRITE_EXTERNAL_STORAGE'
+				]);
+			}
 
-		if (AndroidVersion.SDK_INT >= AndroidVersionCode.R && 
-			!AndroidEnvironment.isExternalStorageManager()) {
-			AndroidSettings.requestSetting('MANAGE_EXTERNAL_STORAGE');
+			if (AndroidVersion.SDK_INT >= AndroidVersionCode.R &&
+				!AndroidEnvironment.isExternalStorageManager())
+			{
+				AndroidSettings.requestSetting('MANAGE_APP_ALL_FILES_ACCESS_PERMISSION');
+			}
 		}
 
 		if (!hasRequiredPermissions()) {
 			CoolUtil.showPopUp(
 				Language.getPhrase('permissions_message', 
-					'Storage permissions are required for saving game data and mods.\n' +
+					'Storage permissions are required for public mods and external saves.\n' +
 					'Please grant the requested permissions when prompted.'),
 				Language.getPhrase('mobile_notice', "Notice!")
 			);
@@ -158,13 +292,20 @@ class StorageUtil
 	{
 		final directories = [
 			getStorageDirectory(),
-			Path.join([getExternalStorageDirectory(), 'mods']),
-			getSMDirectory(),
-			Path.join([getExternalStorageDirectory(), 'saves'])
+			getScopedModsDirectory(),
+			getSavesDirectory(),
+			getLogsDirectory(),
+			getSMDirectory()
 		];
 
+		if (useExternalModsStorage())
+		{
+			directories.push(getPublicStorageDirectory());
+			directories.push(getPublicModsDirectory());
+		}
+
 		var allDirectoriesCreated = true;
-		var failedDirectories = [];
+		var failedDirectories:Array<String> = [];
 		
 		for (dir in directories) {
 			if (!ensureDirectory(dir)) {

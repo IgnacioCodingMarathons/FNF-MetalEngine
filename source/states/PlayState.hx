@@ -6,6 +6,7 @@ import backend.StageData;
 import backend.WeekData;
 import backend.Song;
 import backend.Rating;
+import backend.AssetLoader;
 
 import flixel.FlxBasic;
 import flixel.FlxObject;
@@ -19,6 +20,7 @@ import flixel.util.FlxTimer;
 import flixel.input.keyboard.FlxKey;
 import flixel.animation.FlxAnimationController;
 import lime.utils.Assets;
+import openfl.utils.AssetType;
 import openfl.utils.Assets as OpenFlAssets;
 import openfl.events.KeyboardEvent;
 import haxe.Json;
@@ -337,6 +339,7 @@ class PlayState extends MusicBeatState
 	public var keyViewer:objects.KeyViewer;
 	var popupTimer:FlxTimer = null;
 	var popupVisible:Bool = false;
+	var botplayKeyReleaseTimers:Array<FlxTimer> = [null, null, null, null];
 	var turnValue:Int = 10;
 	public var displayedScore:Int = 0;
 	var cameraBopFrequency:Float = 1;
@@ -792,12 +795,12 @@ class PlayState extends MusicBeatState
 		add(judgementCounter);
 
 		var versionStr = "PlE v" + MainMenuState.plusEngineVersion + " | " + SONG.song + " (" + Difficulty.getString() + ")";
-		versionText = new FlxText(0, -50, FlxG.width, versionStr, 14); // Solo mostrar versión
+		versionText = new FlxText(0, -50, FlxG.width, versionStr, 14);
 		versionText.setFormat(Paths.font("vcr.ttf"), 14, FlxColor.WHITE, CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 		versionText.scrollFactor.set();
-		versionText.alpha = 1.0; // Comienza completamente visible
+		versionText.alpha = 1.0; 
 		versionText.borderSize = 1;
-		versionText.visible = true; // Siempre visible
+		versionText.visible = ClientPrefs.data.versionTextOnGameplay;
 		versionText.cameras = [FlxG.cameras.list[FlxG.cameras.list.length - 1]];
 
 		Conductor.songPosition = -Conductor.crochet * 5 + Conductor.offset;
@@ -883,6 +886,7 @@ class PlayState extends MusicBeatState
 
 		noteGroup.add(grpNoteSplashes);
 		noteGroup.add(grpHoldSplashes);
+		precacheHitEffects();
 
 		camFollow = new FlxObject();
 		camFollow.setPosition(camPos.x, camPos.y);
@@ -917,7 +921,14 @@ class PlayState extends MusicBeatState
 		
 		iconP1 = new HealthIcon(boyfriend != null ? boyfriend.healthIcon : 'bf', true);
 		if(bf_animatedIcon) iconP1.changeIcon(iconP1.getCharacter(), true, true);
-		iconP1.y = healthBar.y - 75;
+		if (ClientPrefs.data.iconBounceType == 'Old')
+		{
+			iconP1.y = healthBar.y - (iconP1.height / 2);
+		}
+		else
+		{
+			iconP1.y = healthBar.y - 75;
+		}
 		// Ocultar iconos en NotITG
 		iconP1.visible = !ClientPrefs.data.hideHud && !isNotITG;
 		iconP1.alpha = ClientPrefs.data.healthBarAlpha;
@@ -925,7 +936,14 @@ class PlayState extends MusicBeatState
 
 		iconP2 = new HealthIcon(dad != null ? dad.healthIcon : 'dad', false);
 		if(dad_animatedIcon) iconP2.changeIcon(iconP2.getCharacter(), true, true);
-		iconP2.y = healthBar.y - 75;
+		if (ClientPrefs.data.iconBounceType == 'Old')
+		{
+			iconP2.y = healthBar.y - (iconP2.height / 2);
+		}
+		else
+		{
+			iconP2.y = healthBar.y - 75;
+		}
 		iconP2.visible = !ClientPrefs.data.hideHud && !isNotITG;
 		iconP2.alpha = ClientPrefs.data.healthBarAlpha;
 		if (!isNotITG) uiGroup.add(iconP2);
@@ -1013,6 +1031,9 @@ class PlayState extends MusicBeatState
 		uiGroup.cameras = [camHUD];
 		noteGroup.cameras = [camHUD];
 		comboGroup.cameras = [ClientPrefs.data.comboInGame ? camGame : camHUD];
+		showRating = ClientPrefs.data.showRating;
+		showCombo = ClientPrefs.data.showCombo;
+		showComboNum = ClientPrefs.data.showComboNum;
 
 		startingSong = true;
 
@@ -1469,7 +1490,7 @@ class PlayState extends MusicBeatState
 		var luaFile:String = 'characters/$name.lua';
 		#if MODS_ALLOWED
 		var replacePath:String = Paths.modFolders(luaFile);
-		if(FileSystem.exists(replacePath))
+		if(AssetLoader.exists(replacePath, TEXT))
 		{
 			luaFile = replacePath;
 			doPush = true;
@@ -1477,12 +1498,12 @@ class PlayState extends MusicBeatState
 		else
 		{
 			luaFile = Paths.getSharedPath(luaFile);
-			if(FileSystem.exists(luaFile))
+			if(AssetLoader.exists(luaFile, TEXT))
 				doPush = true;
 		}
 		#else
 		luaFile = Paths.getSharedPath(luaFile);
-		if(Assets.exists(luaFile)) doPush = true;
+		if(AssetLoader.exists(luaFile, TEXT)) doPush = true;
 		#end
 
 		if(doPush)
@@ -1505,7 +1526,7 @@ class PlayState extends MusicBeatState
 		var scriptFile:String = 'characters/' + name + '.hx';
 		#if MODS_ALLOWED
 		var replacePath:String = Paths.modFolders(scriptFile);
-		if(FileSystem.exists(replacePath))
+		if(AssetLoader.exists(replacePath, TEXT))
 		{
 			scriptFile = replacePath;
 			doPush = true;
@@ -1514,7 +1535,7 @@ class PlayState extends MusicBeatState
 		#end
 		{
 			scriptFile = Paths.getSharedPath(scriptFile);
-			if(FileSystem.exists(scriptFile))
+			if(AssetLoader.exists(scriptFile, TEXT))
 				doPush = true;
 		}
 
@@ -2599,6 +2620,37 @@ class PlayState extends MusicBeatState
 		}
 	}
 
+	inline function hasHitScripts():Bool
+	{
+		return (luaArray != null && luaArray.length > 0) || (hscriptArray != null && hscriptArray.length > 0);
+	}
+
+	private function precacheHitEffects():Void
+	{
+		var splashSkin:String = PlayState.SONG != null ? PlayState.SONG.splashSkin : null;
+		if (splashSkin != null && splashSkin.length > 0)
+			NoteSplash.warmupSplashSkin(splashSkin);
+
+		for (i in 0...4)
+		{
+			var splash:NoteSplash = new NoteSplash();
+			splash.alpha = 0.000001;
+			splash.kill();
+			grpNoteSplashes.add(splash);
+		}
+
+		if (!ClientPrefs.data.hideSustainSplash)
+		{
+			for (i in 0...4)
+			{
+				var holdSplash:SustainSplash = new SustainSplash();
+				holdSplash.alpha = 0.000001;
+				holdSplash.kill();
+				grpHoldSplashes.add(holdSplash);
+			}
+		}
+	}
+
 	// called only once per different event (Used for precaching)
 	function eventPushed(event:EventNote) {
 		eventPushedUnique(event);
@@ -3174,7 +3226,8 @@ class PlayState extends MusicBeatState
 				notes.insert(0, dunceNote);
 				dunceNote.spawned = true;
 
-				callOnLuas('onSpawnNote', [notes.members.indexOf(dunceNote), dunceNote.noteData, dunceNote.noteType, dunceNote.isSustainNote, dunceNote.strumTime]);
+				var spawnNoteIndex:Int = hasHitScripts() ? notes.members.indexOf(dunceNote) : 0;
+				callOnLuas('onSpawnNote', [spawnNoteIndex, dunceNote.noteData, dunceNote.noteType, dunceNote.isSustainNote, dunceNote.strumTime]);
 				callOnHScript('onSpawnNote', [dunceNote]);
 
 				var index:Int = unspawnNotes.indexOf(dunceNote);
@@ -3268,6 +3321,16 @@ class PlayState extends MusicBeatState
 		}
 		#end
 
+		// Taken from Psych Engine 0.4.2
+		if (ClientPrefs.data.iconBounceType == 'Old')
+		{
+			iconP1.setGraphicSize(Std.int(FlxMath.lerp(150, iconP1.width, CoolUtil.boundTo(1 - (elapsed * 30), 0, 1))));
+			iconP2.setGraphicSize(Std.int(FlxMath.lerp(150, iconP2.width, CoolUtil.boundTo(1 - (elapsed * 30), 0, 1))));
+
+			iconP1.updateHitbox();
+			iconP2.updateHitbox();
+		}
+
 		setOnScripts('botPlay', cpuControlled);
 		callOnScripts('onUpdatePost', [elapsed]);
 	}
@@ -3275,16 +3338,33 @@ class PlayState extends MusicBeatState
 	// Health icon updaters
 	public dynamic function updateIconsScale(elapsed:Float)
 	{
-		if (iconP1 != null) {
-			var mult:Float = FlxMath.lerp(1, iconP1.scale.x, Math.exp(-elapsed * 9 * playbackRate));
+		if (ClientPrefs.data.iconBounceType == 'NF')
+		{
+			// Taken from NovaFlare Engine
+			var mult:Float = FlxMath.lerp(1, iconP1.scale.x, FlxMath.bound((1 - (elapsed * 9 * playbackRate)) / 1.1, 0, 1));
 			iconP1.scale.set(mult, mult);
 			iconP1.updateHitbox();
-		}
 
-		if (iconP2 != null) {
-			var mult:Float = FlxMath.lerp(1, iconP2.scale.x, Math.exp(-elapsed * 9 * playbackRate));
+			var mult:Float = FlxMath.lerp(1, iconP2.scale.x, FlxMath.bound((1 - (elapsed * 9 * playbackRate)) / 1.1, 0, 1));
 			iconP2.scale.set(mult, mult);
 			iconP2.updateHitbox();
+		}
+
+		if (ClientPrefs.data.iconBounceType == 'Default' || ClientPrefs.data.iconBounceType == 'D&B')
+		{
+			if (iconP1 != null)
+			{
+				var mult:Float = FlxMath.lerp(1, iconP1.scale.x, Math.exp(-elapsed * 9 * playbackRate));
+				iconP1.scale.set(mult, mult);
+				iconP1.updateHitbox();
+			}
+
+			if (iconP2 != null)
+			{
+				var mult:Float = FlxMath.lerp(1, iconP2.scale.x, Math.exp(-elapsed * 9 * playbackRate));
+				iconP2.scale.set(mult, mult);
+				iconP2.updateHitbox();
+			}
 		}
 	}
 
@@ -4312,6 +4392,10 @@ class PlayState extends MusicBeatState
 	public var showComboNum:Bool = true;
 	public var showRating:Bool = true;	// Stores Ratings and Combo Sprites in a group
 	public var comboGroup:FlxSpriteGroup;
+	var ratingPopupPool:Array<FlxSprite> = [];
+	var comboPopupPool:Array<FlxSprite> = [];
+	var numberPopupPool:Array<FlxSprite> = [];
+	var breakPopupPool:Array<FlxSprite> = [];
 	// Stores HUD Objects in a Group
 	public var uiGroup:FlxSpriteGroup;
 	// Stores Note Objects in a Group
@@ -4331,6 +4415,86 @@ class PlayState extends MusicBeatState
 		// Cachear sprites de miss y combo broken
 		Paths.image(uiFolder + 'miss' + uiPostfix);
 		Paths.image(uiFolder + 'comboBroken' + uiPostfix);
+
+		for (i in 0...6)
+		{
+			var ratingSprite:FlxSprite = new FlxSprite();
+			ratingSprite.exists = false;
+			ratingSprite.visible = false;
+			ratingSprite.active = false;
+			comboGroup.add(ratingSprite);
+			ratingPopupPool.push(ratingSprite);
+
+			var comboSprite:FlxSprite = new FlxSprite();
+			comboSprite.exists = false;
+			comboSprite.visible = false;
+			comboSprite.active = false;
+			comboGroup.add(comboSprite);
+			comboPopupPool.push(comboSprite);
+		}
+
+		for (i in 0...18)
+		{
+			var numSprite:FlxSprite = new FlxSprite();
+			numSprite.exists = false;
+			numSprite.visible = false;
+			numSprite.active = false;
+			comboGroup.add(numSprite);
+			numberPopupPool.push(numSprite);
+		}
+
+		for (i in 0...4)
+		{
+			var breakSprite:FlxSprite = new FlxSprite();
+			breakSprite.exists = false;
+			breakSprite.visible = false;
+			breakSprite.active = false;
+			comboGroup.add(breakSprite);
+			breakPopupPool.push(breakSprite);
+		}
+	}
+
+	private function acquirePopupSprite(pool:Array<FlxSprite>, path:String, scaleX:Float, scaleY:Float, antialias:Bool):FlxSprite
+	{
+		var popup:FlxSprite = null;
+		for (sprite in pool)
+		{
+			if (sprite != null && !sprite.exists)
+			{
+				popup = sprite;
+				break;
+			}
+		}
+
+		if (popup == null)
+		{
+			popup = new FlxSprite();
+			popup.exists = false;
+			popup.visible = false;
+			popup.active = false;
+			comboGroup.add(popup);
+			pool.push(popup);
+		}
+
+		popup.loadGraphic(Paths.image(path));
+		popup.active = true;
+		popup.exists = true;
+		popup.visible = true;
+		popup.alpha = 1;
+		popup.scale.set(scaleX, scaleY);
+		popup.antialiasing = antialias;
+		popup.updateHitbox();
+		return popup;
+	}
+
+	private inline function releasePopupSprite(sprite:FlxSprite):Void
+	{
+		if (sprite == null) return;
+		sprite.kill();
+		sprite.visible = false;
+		sprite.active = false;
+		sprite.exists = false;
+		sprite.alpha = 0;
 	}
 
 	private function calculateWife3Score(timingError:Float):Float
@@ -4352,13 +4516,13 @@ class PlayState extends MusicBeatState
 			{
 				if(spr == null) continue;
 
-				comboGroup.remove(spr);
-				spr.destroy();
+				if (spr.exists)
+					releasePopupSprite(spr);
 			}
 		}
 
 		var placement:Float = FlxG.width * 0.35;
-		var rating:FlxSprite = new FlxSprite();
+		var rating:FlxSprite = null;
 		var score:Int = 350;
 
 		//tryna do MS based judgment due to popular demand
@@ -4368,56 +4532,50 @@ class PlayState extends MusicBeatState
 
 		// totalNotesHit += daRating.ratingMod;
 		
-		// === SISTEMAS DE ACCURACY ===
-		
-		// 1. Wife3 Accuracy System STANDARD (StepMania)
-		var noteDiff_ms:Float = Math.abs(noteDiff / playbackRate);
-		var noteWifeScore:Float = calculateWife3Score(noteDiff_ms);
-		wife3Scores.push(noteWifeScore);
-		
-		// 2. Psych Engine Accuracy System (Original)
-		totalNotesHit += daRating.ratingMod;
-		
-		// 3. Simple Accuracy System
-		if (daRating.name == 'flawless' || daRating.name == 'sick' || daRating.name == 'good') {
-			notesHitSimple++;
-		}
-		
-		// 4. osu!mania Accuracy System
-		switch(daRating.name) {
-			case 'flawless' | 'sick': osuMania_n300++;
-			case 'good': osuMania_n200++;
-			case 'bad': osuMania_n100++;
-			case 'shit': osuMania_n50++;
-		}
-		
-		// 5. DJMAX Accuracy System
-		switch(daRating.name) {
-			case 'flawless': djmax_maxPerfect++;
-			case 'sick': djmax_perfect++;
-			case 'good': djmax_great++;
-			case 'bad': djmax_good++;
-			case 'shit': djmax_bad++;
-		}
-		
-		// 6. ITG (Dance Points) System
-		// Mapeo de ratings a ventanas ITG
-		switch(daRating.name) {
-			case 'flawless': 
-				itg_FantasticPlus++; // W0
-				itg_DP += 10; // Máximo score
-			case 'sick': 
-				itg_Fantastic++; // W1
-				itg_DP += 10;
-			case 'good': 
-				itg_Excellent++; // W2
-				itg_DP += 9;
-			case 'bad': 
-				itg_Great++; // W3
-				itg_DP += 5;
-			case 'shit': 
-				itg_Decent++; // W4
-				itg_DP += 2;
+		// === SISTEMA DE ACCURACY ACTIVO ===
+		switch (ClientPrefs.data.accuracySystem)
+		{
+			case 'Wife3':
+				var noteDiff_ms:Float = Math.abs(noteDiff / playbackRate);
+				wife3Scores.push(calculateWife3Score(noteDiff_ms));
+			case 'Psych':
+				totalNotesHit += daRating.ratingMod;
+			case 'Simple':
+				if (daRating.name == 'flawless' || daRating.name == 'sick' || daRating.name == 'good')
+					notesHitSimple++;
+			case 'osu!mania':
+				switch(daRating.name) {
+					case 'flawless' | 'sick': osuMania_n300++;
+					case 'good': osuMania_n200++;
+					case 'bad': osuMania_n100++;
+					case 'shit': osuMania_n50++;
+				}
+			case 'DJMAX':
+				switch(daRating.name) {
+					case 'flawless': djmax_maxPerfect++;
+					case 'sick': djmax_perfect++;
+					case 'good': djmax_great++;
+					case 'bad': djmax_good++;
+					case 'shit': djmax_bad++;
+				}
+			case 'ITG':
+				switch(daRating.name) {
+					case 'flawless':
+						itg_FantasticPlus++;
+						itg_DP += 10;
+					case 'sick':
+						itg_Fantastic++;
+						itg_DP += 10;
+					case 'good':
+						itg_Excellent++;
+						itg_DP += 9;
+					case 'bad':
+						itg_Great++;
+						itg_DP += 5;
+					case 'shit':
+						itg_Decent++;
+						itg_DP += 2;
+				}
 		}
 		
 		note.ratingMod = daRating.ratingMod;
@@ -4547,119 +4705,121 @@ class PlayState extends MusicBeatState
 
 		if (ClientPrefs.data.popUpRating)
 		{
-			rating.loadGraphic(Paths.image(uiFolder + daRating.image + uiPostfix));
-			rating.screenCenter();
-			rating.x = placement - 40;
-			rating.y -= 60;
-			rating.acceleration.y = 550 * playbackRate * playbackRate;
-			rating.velocity.y -= FlxG.random.int(140, 175) * playbackRate;
-			rating.velocity.x -= FlxG.random.int(0, 10) * playbackRate;
-			
-			// Configurar tamaño del rating
-			if (!isPixelStage)
+			var shouldShowRating:Bool = showRating && !ClientPrefs.data.hideHud;
+			var shouldShowCombo:Bool = showCombo && !ClientPrefs.data.hideHud;
+			var shouldShowNumbers:Bool = showComboNum && !ClientPrefs.data.hideHud;
+			var hasHudPopup:Bool = shouldShowRating || shouldShowCombo || shouldShowNumbers;
+
+			if (hasHudPopup)
 			{
-				rating.setGraphicSize(Std.int(rating.width * 0.7));
-				rating.antialiasing = antialias;
-			}
-			else
-			{
-				rating.setGraphicSize(Std.int(rating.width * daPixelZoom * 0.85));
-				rating.antialiasing = false;
-			}
-			rating.updateHitbox();
-			
-			// En charts StepMania, hacer invisible el rating por defecto
-			if (isStepManiaChart) {
-				rating.visible = false;
-				// Mostrar judgement de StepMania en su lugar
-				showStepManiaJudgement(daRating.name);
-			} else {
-				rating.visible = (!ClientPrefs.data.hideHud && showRating);
-			}
-			
-			rating.x += ClientPrefs.data.comboOffset[0];
-			rating.y -= ClientPrefs.data.comboOffset[1];
-
-			var comboSpr:FlxSprite = new FlxSprite().loadGraphic(Paths.image(uiFolder + 'combo' + uiPostfix));
-			comboSpr.screenCenter();
-			comboSpr.x = placement;
-			comboSpr.acceleration.y = FlxG.random.int(200, 300) * playbackRate * playbackRate;
-			comboSpr.velocity.y -= FlxG.random.int(140, 160) * playbackRate;
-			
-			// Configurar tamaño del combo
-			if (!isPixelStage)
-			{
-				comboSpr.setGraphicSize(Std.int(comboSpr.width * 0.7));
-				comboSpr.antialiasing = antialias;
-			}
-			else
-			{
-				comboSpr.setGraphicSize(Std.int(comboSpr.width * daPixelZoom * 0.85));
-				comboSpr.antialiasing = false;
-			}
-			comboSpr.updateHitbox();
-			
-			comboSpr.visible = (!ClientPrefs.data.hideHud && showCombo);
-			comboSpr.x += ClientPrefs.data.comboOffset[0];
-			comboSpr.y -= ClientPrefs.data.comboOffset[1];
-			comboSpr.y += 60;
-			comboSpr.velocity.x += FlxG.random.int(1, 10) * playbackRate;
-			comboGroup.add(rating);
-
-			var daLoop:Int = 0;
-			var xThing:Float = 0;
-			if (showCombo)
-				comboGroup.add(comboSpr);
-
-			var separatedScore:String = Std.string(combo).lpad('0', 3);
-			for (i in 0...separatedScore.length)
-			{
-				var numScore:FlxSprite = new FlxSprite().loadGraphic(Paths.image(uiFolder + 'num' + Std.parseInt(separatedScore.charAt(i)) + uiPostfix));
-				numScore.screenCenter();
-				numScore.x = placement + (43 * daLoop) - 90 + ClientPrefs.data.comboOffset[2];
-				numScore.y += 80 - ClientPrefs.data.comboOffset[3];
-
-				if (!PlayState.isPixelStage)
-					numScore.setGraphicSize(Std.int(numScore.width * 0.5));
-				else
-					numScore.setGraphicSize(Std.int(numScore.width * daPixelZoom));
-				numScore.updateHitbox();
-
-				numScore.acceleration.y = FlxG.random.int(200, 300) * playbackRate * playbackRate;
-				numScore.velocity.y -= FlxG.random.int(140, 160) * playbackRate;
-				numScore.velocity.x = FlxG.random.float(-5, 5) * playbackRate;
-				numScore.visible = !ClientPrefs.data.hideHud;
-				numScore.antialiasing = antialias;
-
-				if (combo >= 10 || combo == 0)
-				if(showComboNum)
-					comboGroup.add(numScore);
-
-				FlxTween.tween(numScore, {alpha: 0}, 0.2 / playbackRate, {
-					onComplete: function(tween:FlxTween)
-					{
-						numScore.destroy();
-					},
-					startDelay: Conductor.crochet * 0.002 / playbackRate
-				});
-
-				daLoop++;
-				if (numScore.x > xThing)
-					xThing = numScore.x;
-			}
-			comboSpr.x = xThing + 50;
-			FlxTween.tween(rating, {alpha: 0}, 0.2 / playbackRate, {
-				startDelay: Conductor.crochet * 0.001 / playbackRate
-			});
-
-			FlxTween.tween(comboSpr, {alpha: 0}, 0.2 / playbackRate, {
-				onComplete: function(tween:FlxTween)
+				if (shouldShowRating)
 				{
-					comboSpr.destroy();
-					rating.destroy();
-				},
-				startDelay: Conductor.crochet * 0.002 / playbackRate
-			});
+					rating = acquirePopupSprite(ratingPopupPool, uiFolder + daRating.image + uiPostfix, 1, 1, antialias);
+					rating.screenCenter();
+					rating.x = placement - 40;
+					rating.y -= 60;
+					rating.acceleration.y = 550 * playbackRate * playbackRate;
+					rating.velocity.y -= FlxG.random.int(140, 175) * playbackRate;
+					rating.velocity.x -= FlxG.random.int(0, 10) * playbackRate;
+					
+					if (!isPixelStage) rating.setGraphicSize(Std.int(rating.width * 0.7));
+					else rating.setGraphicSize(Std.int(rating.width * daPixelZoom * 0.85));
+					rating.updateHitbox();
+					
+					if (isStepManiaChart) {
+						rating.visible = false;
+						showStepManiaJudgement(daRating.name);
+					} else {
+						rating.visible = true;
+					}
+					
+					rating.x += ClientPrefs.data.comboOffset[0];
+					rating.y -= ClientPrefs.data.comboOffset[1];
+				}
+
+				var comboSpr:FlxSprite = null;
+				var daLoop:Int = 0;
+				var xThing:Float = placement;
+
+				if (shouldShowCombo || shouldShowNumbers)
+				{
+					if (shouldShowCombo)
+					{
+						comboSpr = acquirePopupSprite(comboPopupPool, uiFolder + 'combo' + uiPostfix, 1, 1, antialias);
+						comboSpr.screenCenter();
+						comboSpr.x = placement;
+						comboSpr.acceleration.y = FlxG.random.int(200, 300) * playbackRate * playbackRate;
+						comboSpr.velocity.y -= FlxG.random.int(140, 160) * playbackRate;
+						
+						if (!isPixelStage) comboSpr.setGraphicSize(Std.int(comboSpr.width * 0.7));
+						else comboSpr.setGraphicSize(Std.int(comboSpr.width * daPixelZoom * 0.85));
+						comboSpr.updateHitbox();
+						
+						comboSpr.visible = combo >= 10;
+						comboSpr.x += ClientPrefs.data.comboOffset[0];
+						comboSpr.y -= ClientPrefs.data.comboOffset[1];
+						comboSpr.y += 60;
+						comboSpr.velocity.x += FlxG.random.int(1, 10) * playbackRate;
+						xThing = comboSpr.x;
+					}
+
+					if (shouldShowNumbers)
+					{
+						var separatedScore:String = Std.string(combo).lpad('0', 3);
+						for (i in 0...separatedScore.length)
+						{
+							var numScore:FlxSprite = acquirePopupSprite(numberPopupPool, uiFolder + 'num' + Std.parseInt(separatedScore.charAt(i)) + uiPostfix, 1, 1, antialias);
+							numScore.screenCenter();
+							numScore.x = placement + (43 * daLoop) - 90 + ClientPrefs.data.comboOffset[2];
+							numScore.y += 80 - ClientPrefs.data.comboOffset[3];
+
+							if (!PlayState.isPixelStage) numScore.setGraphicSize(Std.int(numScore.width * 0.5));
+							else numScore.setGraphicSize(Std.int(numScore.width * daPixelZoom));
+							numScore.updateHitbox();
+
+							numScore.acceleration.y = FlxG.random.int(200, 300) * playbackRate * playbackRate;
+							numScore.velocity.y -= FlxG.random.int(140, 160) * playbackRate;
+							numScore.velocity.x = FlxG.random.float(-5, 5) * playbackRate;
+							numScore.visible = combo >= 10 || combo == 0;
+
+							FlxTween.tween(numScore, {alpha: 0}, 0.2 / playbackRate, {
+								onComplete: function(tween:FlxTween)
+								{
+									releasePopupSprite(numScore);
+								},
+								startDelay: Conductor.crochet * 0.002 / playbackRate
+							});
+
+							daLoop++;
+							if (numScore.x > xThing)
+								xThing = numScore.x;
+						}
+					}
+
+					if (comboSpr != null)
+					{
+						comboSpr.x = xThing + 50;
+						FlxTween.tween(comboSpr, {alpha: 0}, 0.2 / playbackRate, {
+							onComplete: function(tween:FlxTween)
+							{
+								releasePopupSprite(comboSpr);
+							},
+							startDelay: Conductor.crochet * 0.002 / playbackRate
+						});
+					}
+				}
+
+				if (rating != null)
+				{
+					FlxTween.tween(rating, {alpha: 0}, 0.2 / playbackRate, {
+						onComplete: function(tween:FlxTween)
+						{
+							releasePopupSprite(rating);
+						},
+						startDelay: Conductor.crochet * 0.001 / playbackRate
+					});
+				}
+			}
 		}
 	}
 
@@ -4682,11 +4842,9 @@ class PlayState extends MusicBeatState
 		}
 
 		var placement:Float = FlxG.width * 0.35;
-		var breakSprite:FlxSprite = new FlxSprite();
-		
 		// Determinar qué imagen usar
 		var imageName:String = ClientPrefs.data.badShitBreakCombo ? 'comboBroken' : 'miss';
-		breakSprite.loadGraphic(Paths.image(uiFolder + imageName + uiPostfix));
+		var breakSprite:FlxSprite = acquirePopupSprite(breakPopupPool, uiFolder + imageName + uiPostfix, 1, 1, antialias);
 		
 		breakSprite.screenCenter();
 		breakSprite.x = placement - 40;
@@ -4725,12 +4883,10 @@ class PlayState extends MusicBeatState
 			});
 		}
 
-		comboGroup.add(breakSprite);
-
 		FlxTween.tween(breakSprite, {alpha: 0}, 0.2 / playbackRate, {
 			onComplete: function(tween:FlxTween)
 			{
-				breakSprite.destroy();
+				releasePopupSprite(breakSprite);
 			},
 			startDelay: Conductor.crochet * 0.002 / playbackRate
 		});
@@ -5018,7 +5174,7 @@ class PlayState extends MusicBeatState
 
 		noteMissCommon(daNote.noteData, daNote);
 		stagesFunc(function(stage:BaseStage) stage.noteMiss(daNote));
-		var result:Dynamic = callOnLuas('noteMiss', [notes.members.indexOf(daNote), daNote.noteData, daNote.noteType, daNote.isSustainNote]);
+		var result:Dynamic = callOnLuas('noteMiss', [hasHitScripts() ? notes.members.indexOf(daNote) : 0, daNote.noteData, daNote.noteType, daNote.isSustainNote]);
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) callOnHScript('noteMiss', [daNote]);
 	}
 
@@ -5093,23 +5249,24 @@ class PlayState extends MusicBeatState
 		if(!endingSong) songMisses++;
 		totalPlayed++;
 		
-		// Registrar miss en todos los sistemas de accuracy
-		
-		// Wife3 - Penalización FIJA estándar por miss
-		// StepMania Wife3 usa -8.0 puntos por cada miss
-		var missPenalty:Float = -8.0;
-		wife3Scores.push(missPenalty);
-		
-		// osu!mania - Registrar miss
-		osuMania_nMiss++;
-		
-		// DJMAX - Registrar miss y resetear combo
-		djmax_miss++;
-		djmax_combo = 0;
-		
-		// ITG - Penalización por miss (-12 DP)
-		itg_Miss++;
-		itg_DP -= 12;
+		// Registrar miss solo en el sistema de accuracy activo
+		switch (ClientPrefs.data.accuracySystem)
+		{
+			case 'Wife3':
+				wife3Scores.push(-8.0);
+			case 'Psych':
+				totalNotesHit += 0;
+			case 'Simple':
+				// No requiere contador adicional en miss.
+			case 'osu!mania':
+				osuMania_nMiss++;
+			case 'DJMAX':
+				djmax_miss++;
+				djmax_combo = 0;
+			case 'ITG':
+				itg_Miss++;
+				itg_DP -= 12;
+		}
 		
 		RecalculateRating(true);		
 		if (judgementCounter != null) {
@@ -5143,7 +5300,8 @@ class PlayState extends MusicBeatState
 		// Opponent Mode: Update the correct character's holdTimer
 		var opponentChar:Character = playOpponent ? boyfriend : dad;
 		
-		var result:Dynamic = callOnLuas('opponentNoteHitPre', [notes.members.indexOf(note), Math.abs(note.noteData), note.noteType, note.isSustainNote]);
+		final noteIndex:Int = hasHitScripts() ? notes.members.indexOf(note) : 0;
+		var result:Dynamic = callOnLuas('opponentNoteHitPre', [noteIndex, Math.abs(note.noteData), note.noteType, note.isSustainNote]);
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) result = callOnHScript('opponentNoteHitPre', [note]);
 
 		if(result == LuaUtils.Function_Stop) return;
@@ -5189,7 +5347,7 @@ class PlayState extends MusicBeatState
 			health = Math.max(OPPONENT_DRAIN_FLOOR, health - note.hitHealth * healthLoss);
 		
 		stagesFunc(function(stage:BaseStage) stage.opponentNoteHit(note));
-		var result:Dynamic = callOnLuas('opponentNoteHit', [notes.members.indexOf(note), Math.abs(note.noteData), note.noteType, note.isSustainNote]);
+		var result:Dynamic = callOnLuas('opponentNoteHit', [noteIndex, Math.abs(note.noteData), note.noteType, note.isSustainNote]);
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) callOnHScript('opponentNoteHit', [note]);
 
 		spawnHoldSplashOnNote(note);
@@ -5209,11 +5367,12 @@ class PlayState extends MusicBeatState
 		if(note.wasGoodHit) return;
 		if(cpuControlled && note.ignoreNote) return;
 
+		final noteIndex:Int = hasHitScripts() ? notes.members.indexOf(note) : 0;
 		var isSus:Bool = note.isSustainNote; //GET OUT OF MY HEAD, GET OUT OF MY HEAD, GET OUT OF MY HEAD
 		var leData:Int = Math.round(Math.abs(note.noteData));
 		var leType:String = note.noteType;
 
-		var result:Dynamic = callOnLuas('goodNoteHitPre', [notes.members.indexOf(note), leData, leType, isSus]);
+		var result:Dynamic = callOnLuas('goodNoteHitPre', [noteIndex, leData, leType, isSus]);
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) result = callOnHScript('goodNoteHitPre', [note]);
 
 		if(result == LuaUtils.Function_Stop) return;
@@ -5277,9 +5436,15 @@ class PlayState extends MusicBeatState
 				if(keyViewer != null && !note.isSustainNote) {
 					var keyIndex:Int = note.noteData % 4;
 					keyViewer.keyPressed(keyIndex);
-					// Programar release automático después de un corto tiempo
-					new FlxTimer().start(0.1, function(tmr:FlxTimer) {
+					// Programar release automático después de un corto tiempo usando un timer reutilizable
+					if(botplayKeyReleaseTimers[keyIndex] != null)
+					{
+						botplayKeyReleaseTimers[keyIndex].cancel();
+						botplayKeyReleaseTimers[keyIndex] = null;
+					}
+					botplayKeyReleaseTimers[keyIndex] = new FlxTimer().start(0.1, function(tmr:FlxTimer) {
 						if(keyViewer != null) keyViewer.keyReleased(keyIndex);
+						botplayKeyReleaseTimers[keyIndex] = null;
 					});
 				}
 			}
@@ -5322,7 +5487,7 @@ class PlayState extends MusicBeatState
 		}
 
 		stagesFunc(function(stage:BaseStage) stage.goodNoteHit(note));
-		var result:Dynamic = callOnLuas('goodNoteHit', [notes.members.indexOf(note), leData, leType, isSus]);
+		var result:Dynamic = callOnLuas('goodNoteHit', [noteIndex, leData, leType, isSus]);
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) callOnHScript('goodNoteHit', [note]);
 		spawnHoldSplashOnNote(note);
 		
@@ -5353,16 +5518,6 @@ class PlayState extends MusicBeatState
 		
 		var end:Note = note.isSustainNote ? note.parent.tail[note.parent.tail.length - 1] : note.tail[note.tail.length - 1];
 		var splash:SustainSplash = grpHoldSplashes.recycle(SustainSplash);
-		
-		// Buscar el NoteSplash correspondiente para heredar propiedades
-		var linkedSplash:NoteSplash = null;
-		grpNoteSplashes.forEachAlive(function(spr:NoteSplash) {
-			if (spr.babyArrow == (note.mustPress ? playerStrums : opponentStrums).members[note.noteData] && 
-			    spr.noteData == note.noteData % Note.colArray.length) {
-				linkedSplash = spr;
-			}
-		});
-		
 		splash.setupSusSplash((note.mustPress ? playerStrums : opponentStrums).members[note.noteData], note, playbackRate);
 		grpHoldSplashes.add(end.noteHoldSplash = splash);
 	}
@@ -5433,6 +5588,14 @@ class PlayState extends MusicBeatState
 			remove(breakTimerIndicator);
 			breakTimerIndicator.destroy();
 			breakTimerIndicator = null;
+		}
+		for (i in 0...botplayKeyReleaseTimers.length)
+		{
+			if (botplayKeyReleaseTimers[i] != null)
+			{
+				botplayKeyReleaseTimers[i].cancel();
+				botplayKeyReleaseTimers[i] = null;
+			}
 		}
 
 		#if LUA_ALLOWED
@@ -5534,15 +5697,38 @@ class PlayState extends MusicBeatState
 		if (generatedMusic)
 			notes.sort(FlxSort.byY, ClientPrefs.data.downScroll ? FlxSort.ASCENDING : FlxSort.DESCENDING);
 
-		// Animación normal de íconos (escalado)
-		if (!iconAnimationEnabled) {
+		if (ClientPrefs.data.iconBounceType == 'Default')
+		{
 			iconP1.scale.set(1.2, 1.2);
 			iconP2.scale.set(1.2, 1.2);
+
 			iconP1.updateHitbox();
 			iconP2.updateHitbox();
-		} else {
-			// Usar animación DNB style
-			animateIcons();
+		}
+
+		if (ClientPrefs.data.iconBounceType == 'NF')
+		{
+			// Taken from NovaFlare Engine
+			iconP1.scale.set(1.3, 1.3);
+			iconP2.scale.set(1.3, 1.3);
+
+			iconP1.updateHitbox();
+			iconP2.updateHitbox();
+		}
+
+		// Taken from Psych Engine 0.4.2
+		if (ClientPrefs.data.iconBounceType == 'Old')
+		{
+			iconP1.setGraphicSize(Std.int(iconP1.width + 30));
+			iconP2.setGraphicSize(Std.int(iconP2.width + 30));
+
+			iconP1.updateHitbox();
+			iconP2.updateHitbox();
+		}
+
+		if (ClientPrefs.data.iconBounceType == 'D&B')
+		{
+			animateIcons(); // Taken from older of Plus Engine
 		}
 
 		characterBopper(curBeat);
@@ -5700,13 +5886,13 @@ class PlayState extends MusicBeatState
 	{
 		#if MODS_ALLOWED
 		var luaToLoad:String = Paths.modFolders(luaFile);
-		if(!FileSystem.exists(luaToLoad))
+		if(!AssetLoader.exists(luaToLoad, TEXT))
 			luaToLoad = Paths.getSharedPath(luaFile);
 
-		if(FileSystem.exists(luaToLoad))
+		if(AssetLoader.exists(luaToLoad, TEXT))
 		#elseif sys
 		var luaToLoad:String = Paths.getSharedPath(luaFile);
-		if(OpenFlAssets.exists(luaToLoad))
+		if(AssetLoader.exists(luaToLoad, TEXT))
 		#end
 		{
 			for (script in luaArray)
@@ -5724,13 +5910,13 @@ class PlayState extends MusicBeatState
 	{
 		#if MODS_ALLOWED
 		var scriptToLoad:String = Paths.modFolders(scriptFile);
-		if(!FileSystem.exists(scriptToLoad))
+		if(!AssetLoader.exists(scriptToLoad, TEXT))
 			scriptToLoad = Paths.getSharedPath(scriptFile);
 		#else
 		var scriptToLoad:String = Paths.getSharedPath(scriptFile);
 		#end
 
-		if(FileSystem.exists(scriptToLoad))
+		if(AssetLoader.exists(scriptToLoad, TEXT))
 		{
 			if (Iris.instances.exists(scriptToLoad)) return false;
 
@@ -6073,108 +6259,82 @@ class PlayState extends MusicBeatState
 		setOnScripts('totalNotesHit', totalNotesHit);
 		setOnScripts('accuracySystem', ClientPrefs.data.accuracySystem);
 		
-		// Calcular porcentajes individuales para cada sistema
-		var wife3Percent:Float = 0.0;
-		var psychPercent:Float = 0.0;
-		var simplePercent:Float = 0.0;
-		var osuPercent:Float = 0.0;
-		var djmaxPercent:Float = 0.0;
-		var itgPercent:Float = 0.0;
-		
-		// Wife3 Percent
-		if(wife3Scores.length > 0) {
-			var totalPoints:Float = 0.0;
-			for(score in wife3Scores) totalPoints += score;
-			var maxPossiblePoints:Float = wife3Scores.length * 2.0;
-			wife3Percent = Math.max(0.0, Math.min(1.0, totalPoints / maxPossiblePoints));
+		switch (ClientPrefs.data.accuracySystem)
+		{
+			case 'Wife3':
+				var wife3Percent:Float = 0.0;
+				if (wife3Scores.length > 0)
+				{
+					var totalPoints:Float = 0.0;
+					for (score in wife3Scores) totalPoints += score;
+					wife3Percent = Math.max(0.0, Math.min(1.0, totalPoints / (wife3Scores.length * 2.0)));
+				}
+				setOnScripts('ratingWife3', wife3Percent);
+				setOnScripts('wife3Scores', wife3Scores);
+				
+			case 'Psych':
+				setOnScripts('ratingPsych', totalPlayed > 0 ? Math.min(1, Math.max(0, totalNotesHit / totalPlayed)) : 0);
+				setOnScripts('ratingPsychTotal', totalPlayed);
+				
+			case 'Simple':
+				setOnScripts('ratingSimple', totalPlayed > 0 ? Math.min(1, Math.max(0, notesHitSimple / totalPlayed)) : 0);
+				setOnScripts('ratingSimpleTotal', totalPlayed);
+				
+			case 'osu!mania':
+				var totalHitsOsu:Int = osuMania_n300 + osuMania_n200 + osuMania_n100 + osuMania_n50 + osuMania_nMiss;
+				var osuPercent:Float = 0.0;
+				if (totalHitsOsu > 0)
+				{
+					var weightedScore:Float = (300.0 * osuMania_n300) + (200.0 * osuMania_n200) + (100.0 * osuMania_n100) + (50.0 * osuMania_n50);
+					osuPercent = Math.min(1, Math.max(0, weightedScore / (300.0 * totalHitsOsu)));
+				}
+				setOnScripts('ratingOsu', osuPercent);
+				setOnScripts('osuMania_n300', osuMania_n300);
+				setOnScripts('osuMania_n200', osuMania_n200);
+				setOnScripts('osuMania_n100', osuMania_n100);
+				setOnScripts('osuMania_n50', osuMania_n50);
+				setOnScripts('osuMania_nMiss', osuMania_nMiss);
+				
+			case 'DJMAX':
+				var totalNotesDJ:Int = djmax_maxPerfect + djmax_perfect + djmax_great + djmax_good + djmax_bad + djmax_miss;
+				var djmaxPercent:Float = 0.0;
+				if (totalNotesDJ > 0)
+				{
+					var baseScorePerNote:Float = 1000000.0 / totalNotesDJ;
+					var totalScore:Float = 0.0;
+					totalScore += djmax_maxPerfect * baseScorePerNote * 1.0;
+					totalScore += djmax_perfect * baseScorePerNote * 0.95;
+					totalScore += djmax_great * baseScorePerNote * 0.80;
+					totalScore += djmax_good * baseScorePerNote * 0.40;
+					totalScore += djmax_bad * baseScorePerNote * 0.10;
+					var comboBonus:Float = (djmax_maxCombo / totalNotesDJ) * 0.10 * 1000000.0;
+					djmaxPercent = Math.min(1, Math.max(0, (totalScore + comboBonus) / 1100000.0));
+				}
+				setOnScripts('ratingDJMAX', djmaxPercent);
+				setOnScripts('djmax_maxPerfect', djmax_maxPerfect);
+				setOnScripts('djmax_perfect', djmax_perfect);
+				setOnScripts('djmax_great', djmax_great);
+				setOnScripts('djmax_good', djmax_good);
+				setOnScripts('djmax_bad', djmax_bad);
+				setOnScripts('djmax_miss', djmax_miss);
+				setOnScripts('djmax_combo', djmax_combo);
+				setOnScripts('djmax_maxCombo', djmax_maxCombo);
+				
+			case 'ITG':
+				var totalNotesITG:Int = itg_FantasticPlus + itg_Fantastic + itg_Excellent + itg_Great + itg_Decent + itg_WayOff + itg_Miss;
+				var itgPercent:Float = 0.0;
+				if (totalNotesITG > 0)
+					itgPercent = Math.min(1, Math.max(0, Math.max(0, itg_DP) / (totalNotesITG * 10.0)));
+				setOnScripts('ratingITG', itgPercent);
+				setOnScripts('itg_FantasticPlus', itg_FantasticPlus);
+				setOnScripts('itg_Fantastic', itg_Fantastic);
+				setOnScripts('itg_Excellent', itg_Excellent);
+				setOnScripts('itg_Great', itg_Great);
+				setOnScripts('itg_Decent', itg_Decent);
+				setOnScripts('itg_WayOff', itg_WayOff);
+				setOnScripts('itg_Miss', itg_Miss);
+				setOnScripts('itg_DP', itg_DP);
 		}
-		
-		// Psych Engine Percent
-		if(totalPlayed > 0) {
-			psychPercent = Math.min(1, Math.max(0, totalNotesHit / totalPlayed));
-		}
-		
-		// Simple Percent
-		if(totalPlayed > 0) {
-			simplePercent = Math.min(1, Math.max(0, notesHitSimple / totalPlayed));
-		}
-		
-		// osu!mania Percent
-		var totalHitsOsu:Int = osuMania_n300 + osuMania_n200 + osuMania_n100 + osuMania_n50 + osuMania_nMiss;
-		if(totalHitsOsu > 0) {
-			var weightedScore:Float = (300.0 * osuMania_n300) + (200.0 * osuMania_n200) + 
-			                          (100.0 * osuMania_n100) + (50.0 * osuMania_n50);
-			var maxPossibleScore:Float = 300.0 * totalHitsOsu;
-			osuPercent = Math.min(1, Math.max(0, weightedScore / maxPossibleScore));
-		}
-		
-		// DJMAX Percent
-		var totalNotesDJ:Int = djmax_maxPerfect + djmax_perfect + djmax_great + djmax_good + djmax_bad + djmax_miss;
-		if(totalNotesDJ > 0) {
-			var baseScorePerNote:Float = 1000000.0 / totalNotesDJ;
-			var totalScore:Float = 0.0;
-			totalScore += djmax_maxPerfect * baseScorePerNote * 1.0;
-			totalScore += djmax_perfect * baseScorePerNote * 0.95;
-			totalScore += djmax_great * baseScorePerNote * 0.80;
-			totalScore += djmax_good * baseScorePerNote * 0.40;
-			totalScore += djmax_bad * baseScorePerNote * 0.10;
-			var comboBonus:Float = 0.0;
-			if(totalNotesDJ > 0) {
-				var comboRatio:Float = djmax_maxCombo / totalNotesDJ;
-				comboBonus = comboRatio * 0.10 * 1000000.0;
-			}
-			djmaxPercent = Math.min(1, Math.max(0, (totalScore + comboBonus) / 1100000.0));
-		}
-		
-		// ITG Percent
-		var totalNotesITG:Int = itg_FantasticPlus + itg_Fantastic + itg_Excellent + itg_Great + itg_Decent + itg_WayOff + itg_Miss;
-		if(totalNotesITG > 0) {
-			var maxDP:Float = totalNotesITG * 10.0;
-			var currentDP:Float = Math.max(0, itg_DP);
-			itgPercent = Math.min(1, Math.max(0, currentDP / maxDP));
-		}
-		
-		// Wife3 (StepMania) System
-		setOnScripts('ratingWife3', wife3Percent);
-		setOnScripts('wife3Scores', wife3Scores);
-		
-		// Psych Engine System
-		setOnScripts('ratingPsych', psychPercent);
-		setOnScripts('ratingPsychTotal', totalPlayed);
-		
-		// Simple System
-		setOnScripts('ratingSimple', simplePercent);
-		setOnScripts('ratingSimpleTotal', totalPlayed);
-		
-		// osu!mania System
-		setOnScripts('ratingOsu', osuPercent);
-		setOnScripts('osuMania_n300', osuMania_n300);
-		setOnScripts('osuMania_n200', osuMania_n200);
-		setOnScripts('osuMania_n100', osuMania_n100);
-		setOnScripts('osuMania_n50', osuMania_n50);
-		setOnScripts('osuMania_nMiss', osuMania_nMiss);
-		
-		// DJMAX System
-		setOnScripts('ratingDJMAX', djmaxPercent);
-		setOnScripts('djmax_maxPerfect', djmax_maxPerfect);
-		setOnScripts('djmax_perfect', djmax_perfect);
-		setOnScripts('djmax_great', djmax_great);
-		setOnScripts('djmax_good', djmax_good);
-		setOnScripts('djmax_bad', djmax_bad);
-		setOnScripts('djmax_miss', djmax_miss);
-		setOnScripts('djmax_combo', djmax_combo);
-		setOnScripts('djmax_maxCombo', djmax_maxCombo);
-		
-		// ITG (Dance Points) System
-		setOnScripts('ratingITG', itgPercent);
-		setOnScripts('itg_FantasticPlus', itg_FantasticPlus);
-		setOnScripts('itg_Fantastic', itg_Fantastic);
-		setOnScripts('itg_Excellent', itg_Excellent);
-		setOnScripts('itg_Great', itg_Great);
-		setOnScripts('itg_Decent', itg_Decent);
-		setOnScripts('itg_WayOff', itg_WayOff);
-		setOnScripts('itg_Miss', itg_Miss);
-		setOnScripts('itg_DP', itg_DP);
 		
 		updateScore(badHit, scoreBop); // score will only update after rating is calculated, if it's a badHit, it shouldn't bounce
 	}
@@ -6269,16 +6429,16 @@ class PlayState extends MusicBeatState
 			var frag:String = folder + name + '.frag';
 			var vert:String = folder + name + '.vert';
 			var found:Bool = false;
-			if(FileSystem.exists(frag))
+			if(AssetLoader.exists(frag, TEXT))
 			{
-				frag = File.getContent(frag);
+				frag = AssetLoader.loadText(frag);
 				found = true;
 			}
 			else frag = null;
 
-			if(FileSystem.exists(vert))
+			if(AssetLoader.exists(vert, TEXT))
 			{
-				vert = File.getContent(vert);
+				vert = AssetLoader.loadText(vert);
 				found = true;
 			}
 			else vert = null;

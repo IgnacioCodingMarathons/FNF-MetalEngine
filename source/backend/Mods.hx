@@ -1,5 +1,7 @@
 package backend;
 
+import backend.AssetLoader;
+import openfl.utils.AssetType;
 import openfl.utils.Assets;
 
 import haxe.Json;
@@ -95,14 +97,14 @@ class Mods
 	{
 		var foldersToCheck:Array<String> = [];
 		//Main folder
-		if(FileSystem.exists(path + fileToFind))
+		if(AssetLoader.exists(path + fileToFind, TEXT))
 			foldersToCheck.push(path + fileToFind);
 
 		// Week folder
 		if(Paths.currentLevel != null && Paths.currentLevel != path)
 		{
 			var pth:String = Paths.getFolderPath(fileToFind, Paths.currentLevel);
-			if(!foldersToCheck.contains(pth) && FileSystem.exists(pth))
+			if(!foldersToCheck.contains(pth) && AssetLoader.exists(pth, TEXT))
 				foldersToCheck.push(pth);
 		}
 
@@ -113,18 +115,18 @@ class Mods
 			for(mod in Mods.getGlobalMods())
 			{
 				var folder:String = Paths.mods(mod + '/' + fileToFind);
-				if(FileSystem.exists(folder) && !foldersToCheck.contains(folder)) foldersToCheck.push(folder);
+				if(AssetLoader.exists(folder, TEXT) && !foldersToCheck.contains(folder)) foldersToCheck.push(folder);
 			}
 
 			// Then "PsychEngine/mods/" main folder
 			var folder:String = Paths.mods(fileToFind);
-			if(FileSystem.exists(folder) && !foldersToCheck.contains(folder)) foldersToCheck.push(Paths.mods(fileToFind));
+			if(AssetLoader.exists(folder, TEXT) && !foldersToCheck.contains(folder)) foldersToCheck.push(Paths.mods(fileToFind));
 
 			// And lastly, the loaded mod's folder
 			if(Mods.currentModDirectory != null && Mods.currentModDirectory.length > 0)
 			{
 				var folder:String = Paths.mods(Mods.currentModDirectory + '/' + fileToFind);
-				if(FileSystem.exists(folder) && !foldersToCheck.contains(folder)) foldersToCheck.push(folder);
+				if(AssetLoader.exists(folder, TEXT) && !foldersToCheck.contains(folder)) foldersToCheck.push(folder);
 			}
 		}
 		#end
@@ -137,13 +139,9 @@ class Mods
 		if(folder == null) folder = Mods.currentModDirectory;
 
 		var path = Paths.mods(folder + '/pack.json');
-		if(FileSystem.exists(path)) {
+		if(AssetLoader.exists(path, TEXT)) {
 			try {
-				#if sys
-				var rawJson:String = File.getContent(path);
-				#else
-				var rawJson:String = Assets.getText(path);
-				#end
+				var rawJson:String = AssetLoader.loadText(path);
 				if(rawJson != null && rawJson.length > 0) return tjson.TJSON.parse(rawJson);
 			} catch(e:Dynamic) {
 				trace(e);
@@ -160,7 +158,7 @@ class Mods
 
 		#if MODS_ALLOWED
 		try {
-			for (mod in CoolUtil.coolTextFile(#if android StorageUtil.getExternalStorageDirectory() + #else Sys.getCwd() + #end 'modsList.txt'))
+			for (mod in CoolUtil.coolTextFile(#if android StorageUtil.getModsListPath() #else Sys.getCwd() + 'modsList.txt' #end))
 			{
 				//trace('Mod: $mod');
 				if(mod.trim().length < 1) continue;
@@ -186,7 +184,7 @@ class Mods
 		var list:Array<Array<Dynamic>> = [];
 		var added:Array<String> = [];
 		try {
-			for (mod in CoolUtil.coolTextFile(#if android StorageUtil.getExternalStorageDirectory() + #else Sys.getCwd() + #end 'modsList.txt'))
+			for (mod in CoolUtil.coolTextFile(#if android StorageUtil.getModsListPath() #else Sys.getCwd() + 'modsList.txt' #end))
 			{
 				var dat:Array<String> = mod.split("|");
 				var folder:String = dat[0];
@@ -220,7 +218,7 @@ class Mods
 			fileStr += values[0] + '|' + (values[1] ? '1' : '0');
 		}
 
-		File.saveContent(#if android StorageUtil.getExternalStorageDirectory() + #else Sys.getCwd() + #end 'modsList.txt', fileStr);
+		File.saveContent(#if android StorageUtil.getModsListPath() #else Sys.getCwd() + 'modsList.txt' #end, fileStr);
 		updatedOnState = true;
 		//trace('Saved modsList.txt');
 		#end

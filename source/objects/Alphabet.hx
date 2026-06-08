@@ -1,5 +1,7 @@
 package objects;
 
+import backend.AssetLoader;
+import flixel.graphics.frames.FlxAtlasFrames;
 import haxe.Json;
 
 enum Alignment
@@ -277,25 +279,37 @@ class AlphaCharacter extends FlxSprite
 	public var image(default, set):String;
 
 	public static var allLetters:Map<String, Null<Letter>>;
+	static var cachedAlphabetRequest:String = null;
+	static var cachedAlphabetFrames:FlxAtlasFrames = null;
+
+	public static function getAlphabetFrames(request:String = 'alphabet'):FlxAtlasFrames
+	{
+		if (cachedAlphabetFrames != null && cachedAlphabetRequest == request)
+			return cachedAlphabetFrames;
+
+		var atlasPath:String = Paths.getPath('images/$request.xml', TEXT);
+		if (!AssetLoader.exists(atlasPath, TEXT))
+			request = 'alphabet';
+
+		cachedAlphabetRequest = request;
+		cachedAlphabetFrames = Paths.getSparrowAtlas(request);
+		return cachedAlphabetFrames;
+	}
 
 	public static function loadAlphabetData(request:String = 'alphabet')
 	{
 		var path:String = Paths.getPath('images/$request.json');
-		#if MODS_ALLOWED
-		if(!FileSystem.exists(path))
-		#else
-		if(!Assets.exists(path, TEXT))
-		#end
+		if (!AssetLoader.exists(path, TEXT))
 			path = Paths.getPath('images/alphabet.json');
 
 		allLetters = new Map<String, Null<Letter>>();
 		try
 		{
-			#if MODS_ALLOWED
-			var data:Dynamic = Json.parse(File.getContent(path));
-			#else
-			var data:Dynamic = Json.parse(Assets.getText(path));
-			#end
+			var rawData:String = AssetLoader.loadText(path);
+			if(rawData == null || rawData.length == 0)
+				throw 'Missing alphabet data: $path';
+			var data:Dynamic = Json.parse(rawData);
+			getAlphabetFrames(request);
 
 			if(data.allowed != null && data.allowed.length > 0)
 			{
@@ -340,7 +354,7 @@ class AlphaCharacter extends FlxSprite
 	public function new()
 	{
 		super(x, y);
-		image = 'alphabet';
+		frames = getAlphabetFrames('alphabet');
 		antialiasing = ClientPrefs.data.antialiasing;
 	}
 	
@@ -412,7 +426,7 @@ class AlphaCharacter extends FlxSprite
 		if(frames == null) //first setup
 		{
 			image = name;
-			frames = Paths.getSparrowAtlas(name);
+			frames = getAlphabetFrames(name);
 			return name;
 		}
 
@@ -422,7 +436,7 @@ class AlphaCharacter extends FlxSprite
 			lastAnim = animation.name;
 		}
 		image = name;
-		frames = Paths.getSparrowAtlas(name);
+		frames = getAlphabetFrames(name);
 		this.scale.x = parent.scaleX;
 		this.scale.y = parent.scaleY;
 		alignOffset = 0;

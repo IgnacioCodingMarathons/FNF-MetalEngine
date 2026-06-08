@@ -62,11 +62,13 @@ import states.TitleState;
 	public var framerate:Int = 60;
 	public var camZooms:Bool = true;
 	public var hideHud:Bool = false;
-	public var hideSustainSplash:Bool = false;
+	public var hideSustainSplash:Bool = true;
 	public var showKeyViewer:Bool = false;
 	public var iconBounceType:String = 'Default';
 	public var judgementCounter:Bool = false;
+	public var showRating:Bool = true;
 	public var showCombo:Bool = true;
+	public var showComboNum:Bool = true;
 	public var comboInGame:Bool = false;
 	public var useFreakyFont:Bool = false;
 	public var showStateInFPS:Bool = true;
@@ -312,7 +314,14 @@ class ClientPrefs {
 		{
 			var storedType = Reflect.field(save.data, 'storageType');
 			if (storedType != null)
-				data.storageType = storedType;
+			{
+				data.storageType = switch (storedType)
+				{
+					case 'EXTERNAL': 'EXTERNAL';
+					case 'INTERNAL', 'EXTERNAL_DATA': 'INTERNAL';
+					default: 'INTERNAL';
+				};
+			}
 		}
 	}
 	#end
@@ -325,6 +334,9 @@ class ClientPrefs {
 
 		#if ACHIEVEMENTS_ALLOWED Achievements.save(); #end
 		FlxG.save.flush();
+		#if android
+		StorageUtil.saveStorageTypePreference(data.storageType);
+		#end
 
         //Wow counter =p
         Reflect.setField(FlxG.save.data, "judgementCounter", judgementCounter);

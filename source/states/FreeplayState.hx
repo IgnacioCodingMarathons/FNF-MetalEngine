@@ -1,6 +1,7 @@
 package states;
 
 import backend.StageData;
+import backend.AssetLoader;
 import backend.WeekData;
 import backend.Highscore;
 import backend.Song;
@@ -16,6 +17,7 @@ import backend.ui.md3.MD3ShapeTools;
 import flixel.math.FlxMath;
 import flixel.util.FlxDestroyUtil;
 
+import openfl.utils.AssetType;
 import openfl.utils.Assets;
 
 #if funkin.vis
@@ -907,11 +909,9 @@ class FreeplayState extends MusicBeatState
 		try
 		{
 			var path:String = Paths.getPath('characters/$char.json', TEXT);
-			#if MODS_ALLOWED
-			var character:Dynamic = Json.parse(File.getContent(path));
-			#else
-			var character:Dynamic = Json.parse(Assets.getText(path));
-			#end
+			var rawText:String = AssetLoader.loadText(path);
+			if(rawText == null || rawText.length == 0) return null;
+			var character:Dynamic = Json.parse(rawText);
 			return character.vocals_file;
 		}
 		catch (e:Dynamic) {}
@@ -1119,19 +1119,9 @@ class FreeplayState extends MusicBeatState
 			{
 				var checkPath:String = Paths.formatToSongPath(diff);
 				var fullPath:String = Paths.json('$songName/$songName-$checkPath');
-				
-				#if MODS_ALLOWED
-				if (FileSystem.exists(fullPath))
+				if (AssetLoader.exists(fullPath, TEXT))
 				{
 					availableDiffs.push(diff);
-				}
-				else
-				#end
-				{
-					if (Assets.exists(fullPath))
-					{
-						availableDiffs.push(diff);
-					}
 				}
 			}
 		}
@@ -1190,13 +1180,7 @@ class FreeplayState extends MusicBeatState
                     // Sound.fromFile() is the slow, blocking part (disk read + OGG decode).
                     // It is safe to call from a non-main thread on native C++ targets because
                     // OpenAL buffer upload only happens on the first play() call.
-                    #if MODS_ALLOWED
-                    if(sys.FileSystem.exists(filePath))
-                        loadedSound = openfl.media.Sound.fromFile(filePath);
-                    else
-                    #end
-                    if(openfl.utils.Assets.exists(filePath, openfl.utils.AssetType.SOUND))
-                        loadedSound = openfl.utils.Assets.getSound(filePath);
+                    loadedSound = AssetLoader.loadSound(filePath);
                 } catch(e:Dynamic) {
                     trace('[FreePlay] Thread error loading inst "$songName": $e');
                 }
@@ -1607,7 +1591,7 @@ class DifficultySelector
 			
 			// Crear texto de score/accuracy debajo de la dificultad
 			var scoreInfoText:FlxText = new FlxText(0, 0, 450, "", 18);
-			scoreInfoText.setFormat(Paths.font("vcr.ttf"), 18, FlxColor.WHITE, CENTER);
+			scoreInfoText.setFormat(Paths.font("vcr.ttf"), 18, FlxColor.WHITE, CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 			scoreInfoText.ID = i;
 			scoreInfoText.alpha = 0;
 			scoreTexts.add(scoreInfoText);
@@ -1757,14 +1741,17 @@ class DifficultySelector
 			var card:FlxSprite = cards.members[i];
 			var difference:Float = item.ID - lerpSelected;
 			item.y = (difference * 120) + (FlxG.height * 0.5) - 60;
+			var difficultyColor:Int = getDifficultyColor(item.text);
 
 			var baseX:Float = (FlxG.width * 0.5) - (card.width * 0.5) + baseXOffset;
 			var targetX:Float = FlxMath.lerp(baseX + slideDistance, baseX, enterProgress);
 			card.x = targetX;
 			card.y = item.y - 15;
+			card.color = difficultyColor;
 			
 			item.x = card.x + (card.width * 0.5) - (item.width * 0.5);
 			card.y = item.y - 15;
+			item.color = difficultyColor;
 			
 			// Posicionar texto de score/accuracy debajo de la dificultad
 			if (i < scoreTexts.members.length)
@@ -1774,6 +1761,7 @@ class DifficultySelector
 				{
 					scoreText.x = card.x + (card.width * 0.5) - (scoreText.width * 0.5);
 					scoreText.y = item.y + 50; // Más abajo del nombre de dificultad
+					scoreText.color = difficultyColor;
 					
 					if (i == curSelected)
 					{

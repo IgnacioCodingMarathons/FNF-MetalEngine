@@ -3,16 +3,6 @@ package mobile.backend;
 import flixel.system.scaleModes.BaseScaleMode;
 
 /**
- * Custom scale mode for mobile devices.
- * When "Infinity Display" is enabled, the game viewport expands to fill the
- * physical screen instead of showing black bars, giving more game world
- * visibility. The expansion is capped at 20:9 so extreme ultra-wide screens
- * still get small bars rather than an empty stage.
- *
- * The original 1280x720 safe area is preserved: helper methods let UI code
- * offset content into the center region so that mods that hardcode positions
- * still look correct.
- *
  * @author Karim Akra, adapted for Plus Engine
  */
 class MobileScaleMode extends BaseScaleMode

@@ -45,9 +45,6 @@ class VisualsSettingsSubState extends BaseOptionsMenu
 		var noteSkins:Array<String> = Mods.mergeAllTextsNamed(getNoteSkinsListPath());
 		if(noteSkins.length > 0)
 		{
-			if(!noteSkins.contains(ClientPrefs.data.noteSkin))
-				ClientPrefs.data.noteSkin = noteSkins[0]; //Reset if saved noteskin couldnt be found
-
 			noteSkins.insert(0, ClientPrefs.defaultData.noteSkin); //Default skin always comes first
 			var option:Option = new Option('Note Skins:',
 				"Select your prefered Note skin.",
@@ -63,9 +60,6 @@ class VisualsSettingsSubState extends BaseOptionsMenu
 		var noteSplashes:Array<String> = Mods.mergeAllTextsNamed(getSplashSkinsListPath());
 		if(noteSplashes.length > 0)
 		{
-			if(!noteSplashes.contains(ClientPrefs.data.splashSkin))
-				ClientPrefs.data.splashSkin = noteSplashes[0]; //Reset if saved splashskin couldnt be found
-
 			noteSplashes.insert(0, ClientPrefs.defaultData.splashSkin); //Default skin always comes first
 			var option:Option = new Option('Note Splashes:',
 				"Select your prefered Note Splash variation.",
@@ -152,11 +146,22 @@ class VisualsSettingsSubState extends BaseOptionsMenu
 			BOOL);
 		addOption(option);
 
+		var option:Option = new Option('Icon Bounce Type',
+			"Changes the way the health icons bounce.",
+			'iconBounceType',
+			STRING,
+			['Old', 'D&D', 'NF', 'Default']);
+
 		var option:Option = new Option('Time Text Bump',
 			'If unchecked, disables the time text bump animation on beat.',
 			'timeBump',
 			BOOL);
 		addOption(option);
+
+		var option:Option = new Option('Show Version Text on Gameplay',
+			'If checked, shows the version text during gameplay.',
+			'versionTextOnGameplay',
+			BOOL);
 		
 		var option:Option = new Option('Abbreviate Score',
 			'If enabled, the score will be abbreviated (e.g. 10.00K, 1.00M).',
@@ -252,18 +257,21 @@ class VisualsSettingsSubState extends BaseOptionsMenu
 			'showRating',
 			BOOL);
 		addOption(option);
+		option.onChange = syncPopupVisibility;
 
 		var option:Option = new Option('Show Combo Sprite',
 			'If unchecked, hides the COMBO sprite popup when hitting notes.',
 			'showCombo',
 			BOOL);
 		addOption(option);
+		option.onChange = syncPopupVisibility;
 
 		var option:Option = new Option('Show Combo Numbers',
 			'If unchecked, hides combo number popups when hitting notes.',
 			'showComboNum',
 			BOOL);
 		addOption(option);
+		option.onChange = syncPopupVisibility;
 
 		var option:Option = new Option(
             'Combo and Rating in camGame',
@@ -441,9 +449,10 @@ class VisualsSettingsSubState extends BaseOptionsMenu
 		if(noteSkins.length <= 0) return;
 		noteSkins.insert(0, ClientPrefs.defaultData.noteSkin);
 		noteSkinOption.options = noteSkins;
-		if(!noteSkins.contains(ClientPrefs.data.noteSkin))
-			ClientPrefs.data.noteSkin = noteSkins[0];
-		noteSkinOption.curOption = noteSkins.indexOf(ClientPrefs.data.noteSkin);
+		var resolved:String = noteSkins.contains(ClientPrefs.data.noteSkin) ? ClientPrefs.data.noteSkin : ClientPrefs.defaultData.noteSkin;
+		if(!noteSkins.contains(resolved))
+			resolved = noteSkins[0];
+		noteSkinOption.curOption = noteSkins.indexOf(resolved);
 		if(noteSkinOption.curOption < 0) noteSkinOption.curOption = 0;
 		refreshStringOptionVisual(noteSkinOption);
 	}
@@ -455,9 +464,10 @@ class VisualsSettingsSubState extends BaseOptionsMenu
 		if(splashSkins.length <= 0) return;
 		splashSkins.insert(0, ClientPrefs.defaultData.splashSkin);
 		splashSkinOption.options = splashSkins;
-		if(!splashSkins.contains(ClientPrefs.data.splashSkin))
-			ClientPrefs.data.splashSkin = splashSkins[0];
-		splashSkinOption.curOption = splashSkins.indexOf(ClientPrefs.data.splashSkin);
+		var resolved:String = splashSkins.contains(ClientPrefs.data.splashSkin) ? ClientPrefs.data.splashSkin : ClientPrefs.defaultData.splashSkin;
+		if(!splashSkins.contains(resolved))
+			resolved = splashSkins[0];
+		splashSkinOption.curOption = splashSkins.indexOf(resolved);
 		if(splashSkinOption.curOption < 0) splashSkinOption.curOption = 0;
 		refreshStringOptionVisual(splashSkinOption);
 	}
@@ -512,6 +522,17 @@ class VisualsSettingsSubState extends BaseOptionsMenu
 			if (splash.animation.curAnim != null)
 				splash.animation.curAnim.frameRate = FlxG.random.int(minFps, maxFps);
 		}
+	}
+
+	function syncPopupVisibility()
+	{
+		if (PlayState.instance != null)
+		{
+			PlayState.instance.showRating = ClientPrefs.data.showRating;
+			PlayState.instance.showCombo = ClientPrefs.data.showCombo;
+			PlayState.instance.showComboNum = ClientPrefs.data.showComboNum;
+		}
+		ClientPrefs.saveSettings();
 	}
 
 	override function destroy()

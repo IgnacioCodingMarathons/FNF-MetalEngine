@@ -1,4 +1,4 @@
-package lenin.slushithings.windows.winGDIThings;
+package slushithings.windows.winGDIThings;
 
 import flixel.util.FlxColor;
 

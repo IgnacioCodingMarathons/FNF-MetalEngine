@@ -205,7 +205,7 @@ class Paths
 	}
 
 	// define the locally tracked assets
-	public static var localTrackedAssets:Array<String> = [];
+	public static var localTrackedAssets:Array<String> = AssetCache.localTrackedAssets;
 
 	@:access(flixel.system.frontEnds.BitmapFrontEnd._cache)
 	public static function clearStoredMemory()
@@ -227,8 +227,9 @@ class Paths
 			}
 		}
 		// flags everything to be cleared out next unused memory clear
-		localTrackedAssets = [];
-		missingBitmapCache = [];
+		AssetCache.resetLocalTracking();
+		localTrackedAssets = AssetCache.localTrackedAssets;
+		missingBitmapCache = AssetCache.missingBitmapCache;
 		#if !html5 openfl.Assets.cache.clear("songs"); #end
 	}
 
@@ -288,35 +289,7 @@ class Paths
 	}
 
 	static function destroyGraphic(graphic:FlxGraphic):Bool
-	{
-		if (graphic == null)
-			return false;
-
-		// Never dispose a texture while sprites still reference it.
-		if (graphic.useCount > 0)
-			return false;
-
-		// Check if legacy mode is enabled
-		if (ClientPrefs.data.legacyMemoryManagement)
-		{
-			// Psych 0.7.3 style cleanup (no GPU disposal)
-			@:privateAccess
-			openfl.Assets.cache.removeBitmapData(graphic.key);
-			FlxG.bitmap.remove(graphic);
-			graphic.persist = false;
-			graphic.destroyOnNoUse = true;
-			graphic.destroy();
-		}
-		else
-		{
-			// Modern style with GPU memory cleanup
-			if (graphic.bitmap != null && graphic.bitmap.__texture != null)
-				graphic.bitmap.__texture.dispose();
-			FlxG.bitmap.remove(graphic);
-		}
-
-		return true;
-	}
+		return AssetCache.destroyGraphic(graphic);
 
 	static public var currentLevel:String;
 
@@ -324,33 +297,7 @@ class Paths
 		currentLevel = name.toLowerCase();
 
 	public static function getPath(file:String, ?type:AssetType = TEXT, ?parentfolder:String, ?modsAllowed:Bool = true):String
-	{
-		#if MODS_ALLOWED
-		if (modsAllowed)
-		{
-			var customFile:String = file;
-			if (parentfolder != null)
-				customFile = '$parentfolder/$file';
-
-			var modded:String = modFolders(customFile);
-			if (FileSystem.exists(modded))
-				return modded;
-		}
-		#end
-		if (parentfolder == "mobile")
-			return getSharedPath('mobile/$file');
-
-		if (parentfolder != null)
-			return getFolderPath(file, parentfolder);
-
-		if (currentLevel != null && currentLevel != 'shared')
-		{
-			var levelPath = getFolderPath(file, currentLevel);
-			if (OpenFlAssets.exists(levelPath, type))
-				return levelPath;
-		}
-		return getSharedPath(file);
-	}
+		return AssetResolver.resolvePath(file, type, parentfolder, modsAllowed);
 
 	inline static public function getFolderPath(file:String, folder = "shared")
 		return 'assets/$folder/$file';
@@ -417,8 +364,8 @@ class Paths
 	inline static public function soundRandom(key:String, min:Int, max:Int, ?modsAllowed:Bool = true)
 		return sound(key + FlxG.random.int(min, max), modsAllowed);
 
-	public static var currentTrackedAssets:Map<String, FlxGraphic> = [];
-	static var missingBitmapCache:Map<String, Bool> = [];
+	public static var currentTrackedAssets:Map<String, FlxGraphic> = AssetCache.currentTrackedAssets;
+	static var missingBitmapCache:Map<String, Bool> = AssetCache.missingBitmapCache;
 
 	static public function image(key:String, ?parentFolder:String = null, ?allowGPU:Bool = true):FlxGraphic
 	{
@@ -430,7 +377,8 @@ class Paths
 		// from different mods don't leak into each other.
 		if (currentTrackedAssets.exists(resolvedFile))
 		{
-			localTrackedAssets.push(resolvedFile);
+			AssetCache.remember(resolvedFile);
+			localTrackedAssets = AssetCache.localTrackedAssets;
 			return currentTrackedAssets.get(resolvedFile);
 		}
 		return cacheBitmap(key, parentFolder, bitmap, allowGPU);
@@ -445,10 +393,7 @@ class Paths
 			if (missingBitmapCache.exists(resolvedFile))
 				return null;
 
-			#if MODS_ALLOWED if (FileSystem.exists(resolvedFile))
-				bitmap = BitmapData.fromFile(resolvedFile);
-			else #end if (OpenFlAssets.exists(resolvedFile, IMAGE))
-				bitmap = OpenFlAssets.getBitmapData(resolvedFile);
+			bitmap = AssetLoader.loadBitmap(resolvedFile);
 
 			if (bitmap == null)
 			{
@@ -461,34 +406,9 @@ class Paths
 
 		var cacheKey:String = (resolvedFile != null) ? resolvedFile : key;
 
-		if (allowGPU && ClientPrefs.data.cacheOnGPU && bitmap.image != null)
-		{
-			bitmap.lock();
-			if (bitmap.__texture == null)
-			{
-				bitmap.image.premultiplied = true;
-				bitmap.getTexture(FlxG.stage.context3D);
-			}
-			bitmap.getSurface();
-			bitmap.disposeImage();
-			bitmap.image.data = null;
-			bitmap.image = null;
-			bitmap.readable = true;
-		}
-		#if android
-		else
-		{
-			// Even without GPU caching, optimize on low-end Android
-			bitmap = funkin.graphics.TextureOptimizer.optimize(bitmap);
-		}
-		#end
-
-		var graph:FlxGraphic = FlxGraphic.fromBitmapData(bitmap, false, cacheKey);
-		graph.persist = true;
-		graph.destroyOnNoUse = false;
-
-		currentTrackedAssets.set(cacheKey, graph);
-		localTrackedAssets.push(cacheKey);
+		var graph:FlxGraphic = AssetCache.cacheBitmap(cacheKey, bitmap, allowGPU);
+		currentTrackedAssets = AssetCache.currentTrackedAssets;
+		localTrackedAssets = AssetCache.localTrackedAssets;
 		return graph;
 	}
 
@@ -498,19 +418,8 @@ class Paths
 
 	inline static public function getTextFromFile(key:String, ?ignoreMods:Bool = false):String
 	{
-		// Get proper path (checks mods first if allowed, then returns APK path)
 		var path:String = getPath(key, TEXT, null, !ignoreMods);
-
-		// Try loading from mods first (FileSystem), then from APK (OpenFlAssets)
-		#if MODS_ALLOWED
-		if (FileSystem.exists(path))
-			return File.getContent(path);
-		#end
-
-		if (OpenFlAssets.exists(path, TEXT))
-			return Assets.getText(path);
-
-		return null;
+		return AssetLoader.loadText(path);
 	}
 
 	inline static public function font(key:String)
@@ -549,7 +458,7 @@ class Paths
 			#end
 		}
 		#end
-		return (OpenFlAssets.exists(getPath(key, type, parentFolder, false)));
+		return AssetLoader.exists(getPath(key, type, parentFolder, false), type);
 	}
 
 	static public function getAtlas(key:String, ?parentFolder:String = null, ?allowGPU:Bool = true):FlxAtlasFrames
@@ -660,7 +569,7 @@ class Paths
 		return hideChars.replace(invalidChars.replace(path, '-'), '').trim().toLowerCase();
 	}
 
-	public static var currentTrackedSounds:Map<String, Sound> = [];
+	public static var currentTrackedSounds:Map<String, Sound> = AssetCache.currentTrackedSounds;
 
 	public static function returnSound(key:String, ?path:String, ?modsAllowed:Bool = true, ?beepOnNull:Bool = true)
 	{
@@ -669,20 +578,12 @@ class Paths
 		// trace('precaching sound: $file');
 		if (!currentTrackedSounds.exists(file))
 		{
-			var sound:Sound = null;
-
-			// Try loading from mods first (FileSystem), then from APK (OpenFlAssets)
-			#if MODS_ALLOWED
-			if (FileSystem.exists(file))
-				sound = Sound.fromFile(file);
-			else
-			#end
-			if (OpenFlAssets.exists(file, SOUND))
-				sound = OpenFlAssets.getSound(file);
+			var sound:Sound = AssetLoader.loadSound(file);
 
 			if (sound != null)
 			{
-				currentTrackedSounds.set(file, sound);
+				AssetCache.cacheSound(file, sound);
+				currentTrackedSounds = AssetCache.currentTrackedSounds;
 			}
 			else if (beepOnNull)
 			{
@@ -691,7 +592,8 @@ class Paths
 				return FlxAssets.getSound('flixel/sounds/beep');
 			}
 		}
-		localTrackedAssets.push(file);
+		AssetCache.remember(file);
+		localTrackedAssets = AssetCache.localTrackedAssets;
 		return currentTrackedSounds.get(file);
 	}
 
@@ -712,7 +614,7 @@ class Paths
 			list.push(normalizedPath);
 	}
 
-	static function safeModPathExists(path:String):Bool
+	public static function safeModPathExists(path:String):Bool
 	{
 		try
 		{

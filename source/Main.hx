@@ -29,7 +29,7 @@ import lime.graphics.Image;
 import backend.Highscore;
 import lime.system.System as LimeSystem;
 
-import lenin.slushithings.windows.WindowsAPI;
+import slushithings.windows.WindowsAPI;
 
 // NATIVE API STUFF, YOU CAN IGNORE THIS AND SCROLL //
 #if (linux && !debug)
@@ -86,6 +86,7 @@ class Main extends Sprite
 		super();
 		#if mobile
 		#if android
+		ClientPrefs.loadStorageTypeEarly();
 		StorageUtil.requestPermissions();
 		#end
 		Sys.setCwd(StorageUtil.getStorageDirectory());
@@ -205,7 +206,11 @@ class Main extends Sprite
 			   // Posicionamiento inicial con márgenes constantes
 			   var marginX = 10;
 			   var marginY = 3;
+			   #if mobile
+			   fpsVar.positionFPS(FlxG.game.x + marginX, FlxG.game.y + marginY, 1.0);
+			   #else
 			   fpsVar.positionFPS(marginX, marginY, 1.0);
+			   #end
 		   }
 
 		#if (linux || mac) // fix the app icon not showing up on the Linux Panel / Mac Dock
@@ -260,7 +265,11 @@ class Main extends Sprite
 			if(fpsVar != null) {
 				var marginX = 10;
 				var marginY = 3;
+				#if mobile
+				fpsVar.positionFPS(FlxG.game.x + marginX, FlxG.game.y + marginY, 1.0);
+				#else
 				fpsVar.positionFPS(marginX, marginY, 1.0);
+				#end
 			}
 			
 			// Reposition TraceDisplay button.

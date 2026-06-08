@@ -1,34 +1,19 @@
-/*
- * Copyright (C) 2025 Mobile Porting Team
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- */
-
 package mobile.options;
 
+import backend.Mods;
 import options.BaseOptionsMenu;
 import options.Option;
+#if android
+import mobile.backend.StorageUtil;
+#end
 
 class MobileSettingsSubState extends BaseOptionsMenu
 {
 	final exControlTypes:Array<String> = ["NONE", "SINGLE", "DOUBLE"];
 	final hintOptions:Array<String> = ["No Gradient", "No Gradient (Old)", "Gradient", "Hidden"];
+	#if android
+	final storageOptions:Array<String> = ["INTERNAL", "EXTERNAL"];
+	#end
 	var option:Option;
 
 	public function new()
@@ -81,6 +66,22 @@ class MobileSettingsSubState extends BaseOptionsMenu
 			'If checked, the mobile controls color will be set to the notes color in your settings.\n(have effect during gameplay only)', 'dynamicColors',
 			BOOL);
 		addOption(option);
+
+		#if android
+		option = new Option('Mods Storage Location',
+			'Choose where Android mods and saved files should live.\nINTERNAL uses scoped app storage, EXTERNAL uses public storage.',
+			'storageType', STRING, storageOptions);
+		option.onChange = () ->
+		{
+			StorageUtil.saveStorageTypePreference(curOption.getValue());
+			#if MODS_ALLOWED
+			Mods.updatedOnState = false;
+			#end
+			if (curOption.getValue() == 'EXTERNAL')
+				StorageUtil.requestPermissions();
+		};
+		addOption(option);
+		#end
 
 		super();
 	}

@@ -6,6 +6,7 @@ class SustainSplash extends FlxSprite
 {
 	public static var startCrochet:Float;
 	public static var frameRate:Int;
+	static var atlasCache:Map<String, Dynamic> = new Map();
 
 	public var strumNote:StrumNote;
 
@@ -21,7 +22,15 @@ class SustainSplash extends FlxSprite
 		var atlasPath = getHoldCoverPath();
 		if (Paths.fileExists('images/$atlasPath.png', IMAGE) && Paths.fileExists('images/$atlasPath.xml', TEXT))
 		{
-			frames = Paths.getSparrowAtlas(atlasPath);
+			var cacheKey:String = 'images/$atlasPath';
+			if (atlasCache.exists(cacheKey))
+				frames = atlasCache.get(cacheKey);
+			else
+			{
+				frames = Paths.getSparrowAtlas(atlasPath);
+				if (frames != null)
+					atlasCache.set(cacheKey, frames);
+			}
 			animation.addByPrefix('hold', 'holdCover0', 24, true);
 			animation.addByPrefix('end', 'holdCoverEnd0', 24, false);
 			if(!animation.getNameList().contains("hold")) trace("Hold splash is missing 'hold' anim!");
@@ -32,6 +41,12 @@ class SustainSplash extends FlxSprite
 			trace('Hold splash atlas not found: $atlasPath');
 			makeGraphic(1, 1, 0x00000000); // Crear una imagen transparente
 		}
+	}
+
+	public static function warmupHoldCover():Void
+	{
+		var splash = new SustainSplash();
+		splash.kill();
 	}
 
 	function getHoldCoverPath():String

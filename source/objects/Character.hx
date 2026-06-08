@@ -1,11 +1,11 @@
 package objects;
 
 import backend.animation.PsychAnimationController;
+import backend.AssetLoader;
 
 import flixel.util.FlxSort;
 import flixel.util.FlxDestroyUtil;
 
-import openfl.utils.Assets;
 import haxe.Json;
 
 import backend.Song;
@@ -111,11 +111,7 @@ class Character extends FlxSprite
 		var characterPath:String = 'characters/$character.json';
 
 		var path:String = Paths.getPath(characterPath, TEXT);
-		#if MODS_ALLOWED
-		if (!FileSystem.exists(path))
-		#else
-		if (!Assets.exists(path))
-		#end
+		if (!AssetLoader.exists(path, TEXT))
 		{
 			path = Paths.getSharedPath('characters/' + DEFAULT_CHARACTER + '.json'); //If a character couldn't be found, change him to BF just to prevent a crash
 			missingCharacter = true;
@@ -125,11 +121,10 @@ class Character extends FlxSprite
 
 		try
 		{
-			#if MODS_ALLOWED
-			loadCharacterFile(Json.parse(File.getContent(path)));
-			#else
-			loadCharacterFile(Json.parse(Assets.getText(path)));
-			#end
+			var rawJson:String = AssetLoader.loadText(path);
+			if(rawJson == null || rawJson.length == 0)
+				throw 'Missing character file: $path';
+			loadCharacterFile(Json.parse(rawJson));
 		}
 		catch(e:Dynamic)
 		{
@@ -183,7 +178,7 @@ class Character extends FlxSprite
 
 		#if flxanimate
 		var animToFind:String = Paths.getPath('images/' + json.image + '/Animation.json', TEXT);
-		if (#if MODS_ALLOWED FileSystem.exists(animToFind) || #end Assets.exists(animToFind))
+		if (AssetLoader.exists(animToFind, TEXT))
 			isAnimateAtlas = true;
 		#end
 

@@ -910,7 +910,11 @@ class ModsMenuState extends MusicBeatState
 
 		// Use StorageUtil.saveContent with proper error handling and no popup alert
 		#if android
-		StorageUtil.saveContent('modsList.txt', fileStr, false);
+		try {
+			File.saveContent(StorageUtil.getModsListPath(), fileStr);
+		} catch (e:Dynamic) {
+			trace('[ModsMenuState] Failed to save modsList.txt: $e');
+		}
 		#else
 		var path:String = Sys.getCwd() + 'modsList.txt';
 		try {

@@ -1,7 +1,7 @@
 package backend;
 
-import lime.utils.Assets;
-import openfl.utils.Assets as OpenFlAssets;
+import backend.AssetLoader;
+import openfl.utils.AssetType;
 import haxe.Json;
 
 typedef WeekFile =
@@ -23,6 +23,7 @@ typedef WeekFile =
 class WeekData {
 	public static var weeksLoaded:Map<String, WeekData> = new Map<String, WeekData>();
 	public static var weeksList:Array<String> = [];
+	static var weekFileCache:Map<String, WeekFile> = new Map();
 	public var folder:String = '';
 
 	// JSON variables
@@ -88,6 +89,7 @@ class WeekData {
 
 		var sexList:Array<String> = CoolUtil.coolTextFile(Paths.getSharedPath('weeks/weekList.txt'));
 		for (i in 0...sexList.length) {
+			if(sexList[i] == null || sexList[i].length == 0) continue;
 			for (j in 0...directories.length) {
 				var fileToCheck:String = directories[j] + 'weeks/' + sexList[i] + '.json';
 				if(!weeksLoaded.exists(sexList[i])) {
@@ -117,8 +119,9 @@ class WeekData {
 				var listOfWeeks:Array<String> = CoolUtil.coolTextFile(directory + 'weekList.txt');
 				for (daWeek in listOfWeeks)
 				{
+					if(daWeek == null || daWeek.length == 0) continue;
 					var path:String = directory + daWeek + '.json';
-					if(FileSystem.exists(path))
+					if(AssetLoader.exists(path, TEXT))
 					{
 						addWeek(daWeek, path, directories[i], i, originalLength);
 					}
@@ -161,21 +164,23 @@ class WeekData {
 	}
 
 	private static function getWeekFile(path:String):WeekFile {
-		var rawJson:String = null;
-		#if MODS_ALLOWED
-		if(FileSystem.exists(path)) {
-			rawJson = File.getContent(path);
-		}
-		#else
-		if(OpenFlAssets.exists(path)) {
-			rawJson = Assets.getText(path);
-		}
-		#end
+		if(weekFileCache.exists(path))
+			return weekFileCache.get(path);
+
+		var rawJson:String = AssetLoader.loadText(path);
 
 		if(rawJson != null && rawJson.length > 0) {
-			return cast tjson.TJSON.parse(rawJson);
+			var parsed:WeekFile = cast tjson.TJSON.parse(rawJson);
+			if(parsed != null)
+				weekFileCache.set(path, parsed);
+			return parsed;
 		}
 		return null;
+	}
+
+	public static function clearCache():Void
+	{
+		weekFileCache.clear();
 	}
 
 	//   FUNCTIONS YOU WILL PROBABLY NEVER NEED TO USE

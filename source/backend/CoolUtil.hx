@@ -1,5 +1,7 @@
 package backend;
 
+import backend.AssetLoader;
+import openfl.utils.AssetType;
 import openfl.utils.Assets;
 import lime.utils.Assets as LimeAssets;
 
@@ -114,14 +116,16 @@ class CoolUtil
 	inline public static function capitalize(text:String)
 		return text.charAt(0).toUpperCase() + text.substr(1).toLowerCase();
 
+	public static function boundTo(value:Float, min:Float, max:Float):Float {
+		var newValue:Float = value;
+		if(newValue < min) newValue = min;
+		else if(newValue > max) newValue = max;
+		return newValue;
+	}
+
 	inline public static function coolTextFile(path:String):Array<String>
 	{
-		var daList:String = null;
-		#if (sys && MODS_ALLOWED)
-		if(FileSystem.exists(path)) daList = File.getContent(path);
-		#else
-		if(Assets.exists(path)) daList = Assets.getText(path);
-		#end
+		var daList:String = AssetLoader.loadText(path);
 		return daList != null ? listFromString(daList) : [];
 	}
 

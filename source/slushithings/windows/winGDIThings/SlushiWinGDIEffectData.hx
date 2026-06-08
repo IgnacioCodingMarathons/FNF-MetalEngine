@@ -1,6 +1,6 @@
-package lenin.slushithings.windows.winGDIThings;
+package slushithings.windows.winGDIThings;
 
-import lenin.slushithings.windows.winGDIThings.SlushiWinGDI.SlushiWinGDIEffect;
+import slushithings.windows.winGDIThings.SlushiWinGDI.SlushiWinGDIEffect;
 
 /**
  * Simple class that contains data from the GDI effect before it is started

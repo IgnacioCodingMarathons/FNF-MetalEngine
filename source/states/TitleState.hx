@@ -1,5 +1,6 @@
 package states;
 
+import backend.AssetLoader;
 import backend.ClientPrefs;
 
 import flixel.input.keyboard.FlxKey;
@@ -353,19 +354,30 @@ class TitleState extends MusicBeatState
 		}
 		#end
 		
-		// Fallback: usar archivo introText.txt
+		// Fallback: usar archivo introText.txt, primero mods y luego assets base
+		var firstArray:Array<String> = [];
 		#if MODS_ALLOWED
-		var firstArray:Array<String> = Mods.mergeAllTextsNamed('data/introText.txt');
-		#else
-		var fullText:String = Assets.getText(Paths.txt('introText'));
-		var firstArray:Array<String> = fullText.split('\n');
+		firstArray = Mods.mergeAllTextsNamed('data/introText.txt');
 		#end
+		if (firstArray == null || firstArray.length == 0)
+		{
+			var fullText:String = AssetLoader.loadText(Paths.txt('introText'));
+			if (fullText != null && fullText.length > 0)
+				firstArray = fullText.split('\n');
+		}
+		if (firstArray == null)
+			firstArray = [];
+
 		var swagGoodArray:Array<Array<String>> = [];
 
 		for (i in firstArray)
 		{
-			swagGoodArray.push(i.split('--'));
+			if (i != null && i.trim().length > 0)
+				swagGoodArray.push(i.split('--'));
 		}
+
+		if (swagGoodArray.length == 0)
+			swagGoodArray.push(['Psych Engine', 'Plus Engine']);
 
 		return swagGoodArray;
 	}

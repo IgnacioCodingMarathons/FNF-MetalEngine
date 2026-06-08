@@ -2,6 +2,8 @@ package backend;
 
 import haxe.Json;
 import lime.utils.Assets;
+import backend.AssetLoader;
+import openfl.utils.AssetType;
 
 import objects.Note;
 
@@ -86,6 +88,7 @@ typedef SongCharactersV2 =
 
 class Song
 {
+	public static var chartCache:Map<String, String> = new Map();
 	public var song:String;
 	public var notes:Array<SwagSection>;
 	public var events:Array<Dynamic>;
@@ -209,7 +212,6 @@ class Song
 	public static function getChart(jsonInput:String, ?folder:String):SwagSong
 	{
 		if(folder == null) folder = jsonInput;
-		var rawData:String = null;
 		
 		var formattedFolder:String = Paths.formatToSongPath(folder);
 		var formattedSong:String = Paths.formatToSongPath(jsonInput);
@@ -218,7 +220,7 @@ class Song
 		#if MODS_ALLOWED
 		// Compatibilidad con Psych 0.7.3: Si el chart no existe,
 		// intenta cargar con sufijo "-normal" para mods antiguos
-		var pathExists:Bool = FileSystem.exists(_lastPath);
+		var pathExists:Bool = AssetLoader.exists(_lastPath, TEXT);
 		if(!pathExists)
 		{
 			// Verifica si el jsonInput ya tiene un sufijo de dificultad
@@ -238,7 +240,7 @@ class Song
 			{
 				var normalDiff:String = Paths.formatToSongPath(Difficulty.getDefault()); // "normal"
 				var altPath:String = Paths.json('$formattedFolder/$formattedSong-$normalDiff');
-				if(FileSystem.exists(altPath))
+				if(AssetLoader.exists(altPath, TEXT))
 				{
 					_lastPath = altPath;
 					pathExists = true;
@@ -246,14 +248,21 @@ class Song
 				}
 			}
 		}
-		
-		if(pathExists)
-			rawData = File.getContent(_lastPath);
-		else
 		#end
-			rawData = Assets.getText(_lastPath);
+		var rawData:String = chartCache.get(_lastPath);
+		if(rawData == null)
+		{
+			rawData = AssetLoader.loadText(_lastPath);
+			if(rawData != null)
+				chartCache.set(_lastPath, rawData);
+		}
 
 		return rawData != null ? parseJSON(rawData, jsonInput) : null;
+	}
+
+	public static function clearChartCache():Void
+	{
+		chartCache.clear();
 	}
 
 	public static function parseJSON(rawData:String, ?nameForError:String = null, ?convertTo:String = 'psych_v1'):SwagSong
