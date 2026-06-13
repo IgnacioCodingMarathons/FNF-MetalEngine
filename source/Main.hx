@@ -385,7 +385,7 @@ class Main extends Sprite
 	#if (cpp && windows)
 	function onWindowClose():Void
 	{
-		lenin.slushithings.windows.WindowsAPI.fadeOutAndExit();
+		WindowsAPI.fadeOutAndExit();
 	}
 
 	function onWindowFocusOut():Void
@@ -481,3 +481,4 @@ class Main extends Sprite
 		}
 	}
 }
+

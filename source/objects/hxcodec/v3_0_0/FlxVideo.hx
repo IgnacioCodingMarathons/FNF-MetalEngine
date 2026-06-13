@@ -17,9 +17,23 @@ class FlxVideo extends HxvlcVideo
 	private var _shouldLoop:Bool = false;
 	private var _location:String = null;
 
+	public var onTextureSetup(get, never):Dynamic;
+	private function get_onTextureSetup():Dynamic
+	{
+		#if hxvlc
+		return onFormatSetup;
+		#else
+		return null;
+		#end
+	}
+
 	public function new():Void
 	{
 		super();
+		Reflect.setField(this, "play", function(location:String, shouldLoop:Bool = false):Bool
+		{
+			return playMP4(location, shouldLoop);
+		});
 
 		onOpening.add(function()
 		{

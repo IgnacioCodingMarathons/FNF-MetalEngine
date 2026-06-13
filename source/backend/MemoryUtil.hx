@@ -35,7 +35,7 @@ class MemoryUtil
 	public static function getTaskMemory():Float
 	{
 		#if (windows && cpp)
-		return lenin.slushithings.windows.WindowsCPP.getProcessMemoryUsage();
+		return slushithings.windows.WindowsCPP.getProcessMemoryUsage();
 		#elseif ((ios || macos) && cpp)
 		return funkin.external.apple.MemoryUtil.getCurrentProcessRss();
 
@@ -276,3 +276,4 @@ typedef MemoryStats =
 	 */
 	var systemRAMGB:Float;
 }
+

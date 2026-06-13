@@ -11,7 +11,7 @@ import flixel.util.FlxColor;
 import states.PlayState;
 
 #if windows
-import lenin.slushithings.windows.WindowsAPI;
+import slushithings.windows.WindowsAPI;
 #end
 
 // Window tweening utilities using optimized FlxTween.num method
@@ -723,3 +723,4 @@ class WindowTweens {
         #end
     }
 }
+

@@ -1,5 +1,6 @@
 package psychlua;
 
+import backend.StructurePsychOld;
 import crowplexus.hscript.Expr;
 import crowplexus.hscript.Interp;
 
@@ -78,7 +79,7 @@ class ScriptClassHandler implements IScriptCustomConstructor {
 			if (Std.isOfType(fromVar, Class)) {
 				superCl = cast fromVar;
 			} else {
-				superCl = Type.resolveClass(extend);
+				superCl = StructurePsychOld.resolveClass(extend);
 				if (superCl == null) superCl = Type.resolveClass(extend + '_HSX');
 			}
 			if (superCl == null) {

@@ -11,6 +11,16 @@ class Video extends HxvlcVideo
 {
 	private var _location:String = null;
 
+	public var onTextureSetup(get, never):Dynamic;
+	private function get_onTextureSetup():Dynamic
+	{
+		#if hxvlc
+		return onFormatSetup;
+		#else
+		return null;
+		#end
+	}
+
 	public var location(get, never):String;
 	private function get_location():String
 	{
@@ -20,6 +30,10 @@ class Video extends HxvlcVideo
 	public function new():Void
 	{
 		super();
+		Reflect.setField(this, "play", function(location:String, ?options:Array<String>):Bool
+		{
+			return load(location, options);
+		});
 	}
 
 	override public function load(location:hxvlc.util.Location, ?options:Array<String>):Bool

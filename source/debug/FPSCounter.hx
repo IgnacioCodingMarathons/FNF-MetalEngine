@@ -16,7 +16,7 @@ import haxe.Http;
 import haxe.Json;
 import states.MainMenuState;
 #if windows
-import lenin.slushithings.windows.WindowsCPP;
+import slushithings.windows.WindowsCPP;
 #end
 
 /**
@@ -888,3 +888,4 @@ class FPSCounter extends Sprite
 	}
 	#end
 }
+

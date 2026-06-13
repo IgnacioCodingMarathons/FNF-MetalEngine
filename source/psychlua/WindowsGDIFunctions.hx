@@ -1,7 +1,7 @@
 package psychlua;
 
 #if WINDOWS_FUNCTIONS_ALLOWED
-import lenin.slushithings.windows.WindowsAPI;
+import slushithings.windows.WindowsAPI;
 #end
 
 class WindowsGDIFunctions
@@ -53,3 +53,4 @@ class WindowsGDIFunctions
 		#end
 	}
 }
+

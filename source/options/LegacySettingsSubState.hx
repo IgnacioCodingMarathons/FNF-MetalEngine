@@ -19,11 +19,25 @@ class LegacySettingsSubState extends BaseOptionsMenu
 			BOOL);
 		addOption(option);
 
+		var option:Option = new Option('Legacy File System Access',
+			'If checked, prefers raw filesystem reads for directory scans and old mod layouts.',
+			'legacyFileSystemAccess',
+			BOOL);
+		addOption(option);
+
+		var option:Option = new Option('Legacy Shader Init',
+			'If checked, keeps shader setup closer to old Psych behavior instead of auto-adapting shader code.',
+			'legacyShaderInit',
+			BOOL);
+		addOption(option);
+
+		#if !mobile
 		var option:Option = new Option('Scriptable Custom States',
 			'If checked, lets mods override states through ScriptableState and CustomState.',
 			'useScriptableCustomStates',
 			BOOL);
 		addOption(option);
+		#end
 
 		super();
 	}

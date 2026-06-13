@@ -32,6 +32,29 @@ package slushithings.windows;
 #include <Shlobj.h>
 #include <commctrl.h>
 #include <string>
+#undef TRUE
+#undef FALSE
+#undef BOOLEAN
+#undef ERROR
+#undef NO_ERROR
+#undef DELETE
+#undef OPTIONS
+#undef IN
+#undef OUT
+#undef ALTERNATE
+#undef OPTIONAL
+#undef DOUBLE_CLICK
+#undef DIFFERENCE
+#undef POINT
+#undef RECT
+#undef OVERFLOW
+#undef UNDERFLOW
+#undef DOMAIN
+#undef TRANSPARENT
+#undef CONST
+#undef CopyFile
+#undef COLOR_HIGHLIGHT
+#undef __valid
 
 #include <chrono>
 #include <thread>
@@ -115,7 +138,7 @@ static BOOL SaveToFile(HBITMAP hBitmap3, LPCTSTR lpszFileName)
 	if (hPal)
 	{ 
 		hDC = GetDC(NULL);
-		hOldPal2 = SelectPalette(hDC, (HPALETTE)hPal, FALSE);
+		hOldPal2 = SelectPalette(hDC, (HPALETTE)hPal, 0);
 		RealizePalette(hDC);
 	}
 
@@ -125,7 +148,7 @@ static BOOL SaveToFile(HBITMAP hBitmap3, LPCTSTR lpszFileName)
 
 	if (hOldPal2)
 	{
-		SelectPalette(hDC, (HPALETTE)hOldPal2, TRUE);
+		SelectPalette(hDC, (HPALETTE)hOldPal2, 1);
 		RealizePalette(hDC);
 		ReleaseDC(NULL, hDC);
 	}
@@ -134,7 +157,7 @@ static BOOL SaveToFile(HBITMAP hBitmap3, LPCTSTR lpszFileName)
 		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL); 
 
 	if (fh == INVALID_HANDLE_VALUE)
-		return FALSE; 
+		return 0; 
 
 	bmfHdr.bfType = 0x4D42; // "BM"
 	dwDIBSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + dwPaletteSize + dwBmBitsSize;
@@ -150,7 +173,7 @@ static BOOL SaveToFile(HBITMAP hBitmap3, LPCTSTR lpszFileName)
 	GlobalFree(hDib);
 	CloseHandle(fh);
 
-	return TRUE;
+	return 1;
 } 
 
 static int screenCapture(int x, int y, int w, int h, LPCSTR fname)
@@ -257,7 +280,7 @@ class WindowsCPP
 	 * @return True if running as admin, false otherwise
 	 */
 	@:functionCode('
-		BOOL isAdmin = FALSE;
+		BOOL isAdmin = 0;
 		SID_IDENTIFIER_AUTHORITY ntAuthority = SECURITY_NT_AUTHORITY;
 		PSID adminGroup = nullptr;
 
@@ -266,13 +289,13 @@ class WindowsCPP
 			0, 0, 0, 0, 0, 0, &adminGroup)) {
 
 			if (!CheckTokenMembership(nullptr, adminGroup, &isAdmin)) {
-				isAdmin = FALSE;
+				isAdmin = 0;
 			}
 
 			FreeSid(adminGroup);
 		}
 
-		return isAdmin == TRUE;
+		return isAdmin != 0;
 	')
 	public static function isRunningAsAdmin():Bool
 	{
@@ -802,12 +825,12 @@ class WindowsCPP
 	 * Gets the total physical RAM installed in the system (in MB)
 	 * NOW USES: GetPhysicallyInstalledSystemMemory for more accurate detection
 	 * @return Total RAM in megabytes
-	 * @deprecated Use lenin.slushithings.cpp.CPPInterface.getRAM() instead
+	 * @deprecated Use slushithings.cpp.CPPInterface.getRAM() instead
 	 */
 	public static function getTotalSystemRAM():Int
 	{
 		#if cpp
-		return Std.int(lenin.slushithings.cpp.CPPInterface.getRAM());
+		return Std.int(slushithings.cpp.CPPInterface.getRAM());
 		#else
 		return 0;
 		#end

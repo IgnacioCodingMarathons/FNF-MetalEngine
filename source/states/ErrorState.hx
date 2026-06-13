@@ -41,9 +41,9 @@ class ErrorState extends MusicBeatState
 		errorSine += 180 * elapsed;
 		errorText.alpha = 1 - Math.sin((Math.PI * errorSine) / 180);
 
-		if(controls.ACCEPT && acceptCallback != null)
+		if(controls.ACCEPT || (touchPad != null && touchPad.buttonA.justPressed) && acceptCallback != null)
 			acceptCallback();
-		else if(controls.BACK && backCallback != null)
+		else if(controls.BACK || (touchPad != null && touchPad.buttonB.justPressed) && backCallback != null)
 			backCallback();
 
 		super.update(elapsed);

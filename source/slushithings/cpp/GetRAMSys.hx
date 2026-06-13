@@ -17,6 +17,29 @@ import cpp.UInt64;
 #include <tchar.h>
 #include <dwmapi.h>
 #include <winuser.h>
+#undef TRUE
+#undef FALSE
+#undef BOOLEAN
+#undef ERROR
+#undef NO_ERROR
+#undef DELETE
+#undef OPTIONS
+#undef IN
+#undef OUT
+#undef ALTERNATE
+#undef OPTIONAL
+#undef DOUBLE_CLICK
+#undef DIFFERENCE
+#undef POINT
+#undef RECT
+#undef OVERFLOW
+#undef UNDERFLOW
+#undef DOMAIN
+#undef TRANSPARENT
+#undef CONST
+#undef CopyFile
+#undef COLOR_HIGHLIGHT
+#undef __valid
 ')
 #elseif macos
 @:cppFileCode('

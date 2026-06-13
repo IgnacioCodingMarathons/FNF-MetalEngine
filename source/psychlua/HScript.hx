@@ -1,6 +1,7 @@
 package psychlua;
 
 import objects.Character;
+import backend.StructurePsychOld;
 import psychlua.LuaUtils;
 import psychlua.CustomSubstate;
 import psychlua.ReflectionFunctions;
@@ -444,6 +445,12 @@ class HScript extends Iris
 		set('VideoHandler', objects.hxcodec.v2_6_0.VideoHandler);
 		set('MP4Handler', objects.hxcodec.v2_5_0.MP4Handler);
 		set('MP4Sprite', objects.hxcodec.v2_5_0.MP4Sprite);
+		set('hxcodec.flixel.FlxVideo', objects.hxcodec.v3_0_0.FlxVideo);
+		set('hxcodec.flixel.FlxVideoSprite', objects.hxcodec.v3_0_0.FlxVideoSprite);
+		set('hxcodec.flixel.Video', objects.hxcodec.v3_0_0.Video);
+		set('hxcodec.VideoHandler', objects.hxcodec.v2_6_0.VideoHandler);
+		set('hxcodec.MP4Handler', objects.hxcodec.v2_5_0.MP4Handler);
+		set('hxcodec.MP4Sprite', objects.hxcodec.v2_5_0.MP4Sprite);
 		// Legacy compatibility (hxcodec paths)
 		set('hxcodec', {
 			flixel: {

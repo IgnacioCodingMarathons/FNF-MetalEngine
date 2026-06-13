@@ -54,7 +54,7 @@ import states.stages.*;
 import states.stages.objects.*;
 
 #if windows
-import lenin.slushithings.windows.WindowsAPI;
+import slushithings.windows.WindowsAPI;
 #end
 
 #if LUA_ALLOWED
@@ -886,7 +886,6 @@ class PlayState extends MusicBeatState
 
 		noteGroup.add(grpNoteSplashes);
 		noteGroup.add(grpHoldSplashes);
-		precacheHitEffects();
 
 		camFollow = new FlxObject();
 		camFollow.setPosition(camPos.x, camPos.y);
@@ -2620,37 +2619,6 @@ class PlayState extends MusicBeatState
 		}
 	}
 
-	inline function hasHitScripts():Bool
-	{
-		return (luaArray != null && luaArray.length > 0) || (hscriptArray != null && hscriptArray.length > 0);
-	}
-
-	private function precacheHitEffects():Void
-	{
-		var splashSkin:String = PlayState.SONG != null ? PlayState.SONG.splashSkin : null;
-		if (splashSkin != null && splashSkin.length > 0)
-			NoteSplash.warmupSplashSkin(splashSkin);
-
-		for (i in 0...4)
-		{
-			var splash:NoteSplash = new NoteSplash();
-			splash.alpha = 0.000001;
-			splash.kill();
-			grpNoteSplashes.add(splash);
-		}
-
-		if (!ClientPrefs.data.hideSustainSplash)
-		{
-			for (i in 0...4)
-			{
-				var holdSplash:SustainSplash = new SustainSplash();
-				holdSplash.alpha = 0.000001;
-				holdSplash.kill();
-				grpHoldSplashes.add(holdSplash);
-			}
-		}
-	}
-
 	// called only once per different event (Used for precaching)
 	function eventPushed(event:EventNote) {
 		eventPushedUnique(event);
@@ -3226,8 +3194,7 @@ class PlayState extends MusicBeatState
 				notes.insert(0, dunceNote);
 				dunceNote.spawned = true;
 
-				var spawnNoteIndex:Int = hasHitScripts() ? notes.members.indexOf(dunceNote) : 0;
-				callOnLuas('onSpawnNote', [spawnNoteIndex, dunceNote.noteData, dunceNote.noteType, dunceNote.isSustainNote, dunceNote.strumTime]);
+				callOnLuas('onSpawnNote', [notes.members.indexOf(dunceNote), dunceNote.noteData, dunceNote.noteType, dunceNote.isSustainNote, dunceNote.strumTime]);
 				callOnHScript('onSpawnNote', [dunceNote]);
 
 				var index:Int = unspawnNotes.indexOf(dunceNote);
@@ -4415,76 +4382,6 @@ class PlayState extends MusicBeatState
 		// Cachear sprites de miss y combo broken
 		Paths.image(uiFolder + 'miss' + uiPostfix);
 		Paths.image(uiFolder + 'comboBroken' + uiPostfix);
-
-		for (i in 0...6)
-		{
-			var ratingSprite:FlxSprite = new FlxSprite();
-			ratingSprite.exists = false;
-			ratingSprite.visible = false;
-			ratingSprite.active = false;
-			comboGroup.add(ratingSprite);
-			ratingPopupPool.push(ratingSprite);
-
-			var comboSprite:FlxSprite = new FlxSprite();
-			comboSprite.exists = false;
-			comboSprite.visible = false;
-			comboSprite.active = false;
-			comboGroup.add(comboSprite);
-			comboPopupPool.push(comboSprite);
-		}
-
-		for (i in 0...18)
-		{
-			var numSprite:FlxSprite = new FlxSprite();
-			numSprite.exists = false;
-			numSprite.visible = false;
-			numSprite.active = false;
-			comboGroup.add(numSprite);
-			numberPopupPool.push(numSprite);
-		}
-
-		for (i in 0...4)
-		{
-			var breakSprite:FlxSprite = new FlxSprite();
-			breakSprite.exists = false;
-			breakSprite.visible = false;
-			breakSprite.active = false;
-			comboGroup.add(breakSprite);
-			breakPopupPool.push(breakSprite);
-		}
-	}
-
-	private function acquirePopupSprite(pool:Array<FlxSprite>, path:String, scaleX:Float, scaleY:Float, antialias:Bool):FlxSprite
-	{
-		var popup:FlxSprite = null;
-		for (sprite in pool)
-		{
-			if (sprite != null && !sprite.exists)
-			{
-				popup = sprite;
-				break;
-			}
-		}
-
-		if (popup == null)
-		{
-			popup = new FlxSprite();
-			popup.exists = false;
-			popup.visible = false;
-			popup.active = false;
-			comboGroup.add(popup);
-			pool.push(popup);
-		}
-
-		popup.loadGraphic(Paths.image(path));
-		popup.active = true;
-		popup.exists = true;
-		popup.visible = true;
-		popup.alpha = 1;
-		popup.scale.set(scaleX, scaleY);
-		popup.antialiasing = antialias;
-		popup.updateHitbox();
-		return popup;
 	}
 
 	private inline function releasePopupSprite(sprite:FlxSprite):Void
@@ -4516,13 +4413,13 @@ class PlayState extends MusicBeatState
 			{
 				if(spr == null) continue;
 
-				if (spr.exists)
-					releasePopupSprite(spr);
+				comboGroup.remove(spr);
+				spr.destroy();
 			}
 		}
 
 		var placement:Float = FlxG.width * 0.35;
-		var rating:FlxSprite = null;
+		var rating:FlxSprite = new FlxSprite();
 		var score:Int = 350;
 
 		//tryna do MS based judgment due to popular demand
@@ -4705,121 +4602,120 @@ class PlayState extends MusicBeatState
 
 		if (ClientPrefs.data.popUpRating)
 		{
-			var shouldShowRating:Bool = showRating && !ClientPrefs.data.hideHud;
-			var shouldShowCombo:Bool = showCombo && !ClientPrefs.data.hideHud;
-			var shouldShowNumbers:Bool = showComboNum && !ClientPrefs.data.hideHud;
-			var hasHudPopup:Bool = shouldShowRating || shouldShowCombo || shouldShowNumbers;
-
-			if (hasHudPopup)
+			rating.loadGraphic(Paths.image(uiFolder + daRating.image + uiPostfix));
+			rating.screenCenter();
+			rating.x = placement - 40;
+			rating.y -= 60;
+			rating.acceleration.y = 550 * playbackRate * playbackRate;
+			rating.velocity.y -= FlxG.random.int(140, 175) * playbackRate;
+			rating.velocity.x -= FlxG.random.int(0, 10) * playbackRate;
+			
+			// Configurar tamaño del rating
+			if (!isPixelStage)
 			{
-				if (shouldShowRating)
-				{
-					rating = acquirePopupSprite(ratingPopupPool, uiFolder + daRating.image + uiPostfix, 1, 1, antialias);
-					rating.screenCenter();
-					rating.x = placement - 40;
-					rating.y -= 60;
-					rating.acceleration.y = 550 * playbackRate * playbackRate;
-					rating.velocity.y -= FlxG.random.int(140, 175) * playbackRate;
-					rating.velocity.x -= FlxG.random.int(0, 10) * playbackRate;
-					
-					if (!isPixelStage) rating.setGraphicSize(Std.int(rating.width * 0.7));
-					else rating.setGraphicSize(Std.int(rating.width * daPixelZoom * 0.85));
-					rating.updateHitbox();
-					
-					if (isStepManiaChart) {
-						rating.visible = false;
-						showStepManiaJudgement(daRating.name);
-					} else {
-						rating.visible = true;
-					}
-					
-					rating.x += ClientPrefs.data.comboOffset[0];
-					rating.y -= ClientPrefs.data.comboOffset[1];
-				}
-
-				var comboSpr:FlxSprite = null;
-				var daLoop:Int = 0;
-				var xThing:Float = placement;
-
-				if (shouldShowCombo || shouldShowNumbers)
-				{
-					if (shouldShowCombo)
-					{
-						comboSpr = acquirePopupSprite(comboPopupPool, uiFolder + 'combo' + uiPostfix, 1, 1, antialias);
-						comboSpr.screenCenter();
-						comboSpr.x = placement;
-						comboSpr.acceleration.y = FlxG.random.int(200, 300) * playbackRate * playbackRate;
-						comboSpr.velocity.y -= FlxG.random.int(140, 160) * playbackRate;
-						
-						if (!isPixelStage) comboSpr.setGraphicSize(Std.int(comboSpr.width * 0.7));
-						else comboSpr.setGraphicSize(Std.int(comboSpr.width * daPixelZoom * 0.85));
-						comboSpr.updateHitbox();
-						
-						comboSpr.visible = combo >= 10;
-						comboSpr.x += ClientPrefs.data.comboOffset[0];
-						comboSpr.y -= ClientPrefs.data.comboOffset[1];
-						comboSpr.y += 60;
-						comboSpr.velocity.x += FlxG.random.int(1, 10) * playbackRate;
-						xThing = comboSpr.x;
-					}
-
-					if (shouldShowNumbers)
-					{
-						var separatedScore:String = Std.string(combo).lpad('0', 3);
-						for (i in 0...separatedScore.length)
-						{
-							var numScore:FlxSprite = acquirePopupSprite(numberPopupPool, uiFolder + 'num' + Std.parseInt(separatedScore.charAt(i)) + uiPostfix, 1, 1, antialias);
-							numScore.screenCenter();
-							numScore.x = placement + (43 * daLoop) - 90 + ClientPrefs.data.comboOffset[2];
-							numScore.y += 80 - ClientPrefs.data.comboOffset[3];
-
-							if (!PlayState.isPixelStage) numScore.setGraphicSize(Std.int(numScore.width * 0.5));
-							else numScore.setGraphicSize(Std.int(numScore.width * daPixelZoom));
-							numScore.updateHitbox();
-
-							numScore.acceleration.y = FlxG.random.int(200, 300) * playbackRate * playbackRate;
-							numScore.velocity.y -= FlxG.random.int(140, 160) * playbackRate;
-							numScore.velocity.x = FlxG.random.float(-5, 5) * playbackRate;
-							numScore.visible = combo >= 10 || combo == 0;
-
-							FlxTween.tween(numScore, {alpha: 0}, 0.2 / playbackRate, {
-								onComplete: function(tween:FlxTween)
-								{
-									releasePopupSprite(numScore);
-								},
-								startDelay: Conductor.crochet * 0.002 / playbackRate
-							});
-
-							daLoop++;
-							if (numScore.x > xThing)
-								xThing = numScore.x;
-						}
-					}
-
-					if (comboSpr != null)
-					{
-						comboSpr.x = xThing + 50;
-						FlxTween.tween(comboSpr, {alpha: 0}, 0.2 / playbackRate, {
-							onComplete: function(tween:FlxTween)
-							{
-								releasePopupSprite(comboSpr);
-							},
-							startDelay: Conductor.crochet * 0.002 / playbackRate
-						});
-					}
-				}
-
-				if (rating != null)
-				{
-					FlxTween.tween(rating, {alpha: 0}, 0.2 / playbackRate, {
-						onComplete: function(tween:FlxTween)
-						{
-							releasePopupSprite(rating);
-						},
-						startDelay: Conductor.crochet * 0.001 / playbackRate
-					});
-				}
+				rating.setGraphicSize(Std.int(rating.width * 0.7));
+				rating.antialiasing = antialias;
 			}
+			else
+			{
+				rating.setGraphicSize(Std.int(rating.width * daPixelZoom * 0.85));
+				rating.antialiasing = false;
+			}
+			rating.updateHitbox();
+			
+			// En charts StepMania, hacer invisible el rating por defecto
+			if (isStepManiaChart) {
+				rating.visible = false;
+				// Mostrar judgement de StepMania en su lugar
+				showStepManiaJudgement(daRating.name);
+			} else {
+				rating.visible = (!ClientPrefs.data.hideHud && showRating);
+			}
+			
+			rating.x += ClientPrefs.data.comboOffset[0];
+			rating.y -= ClientPrefs.data.comboOffset[1];
+
+			var comboSpr:FlxSprite = new FlxSprite().loadGraphic(Paths.image(uiFolder + 'combo' + uiPostfix));
+			comboSpr.screenCenter();
+			comboSpr.x = placement;
+			comboSpr.acceleration.y = FlxG.random.int(200, 300) * playbackRate * playbackRate;
+			comboSpr.velocity.y -= FlxG.random.int(140, 160) * playbackRate;
+			
+			// Configurar tamaño del combo
+			if (!isPixelStage)
+			{
+				comboSpr.setGraphicSize(Std.int(comboSpr.width * 0.7));
+				comboSpr.antialiasing = antialias;
+			}
+			else
+			{
+				comboSpr.setGraphicSize(Std.int(comboSpr.width * daPixelZoom * 0.85));
+				comboSpr.antialiasing = false;
+			}
+			comboSpr.updateHitbox();
+			
+			comboSpr.visible = (!ClientPrefs.data.hideHud && showCombo);
+			comboSpr.x += ClientPrefs.data.comboOffset[0];
+			comboSpr.y -= ClientPrefs.data.comboOffset[1];
+			comboSpr.y += 60;
+			comboSpr.velocity.x += FlxG.random.int(1, 10) * playbackRate;
+			comboGroup.add(rating);
+
+			var daLoop:Int = 0;
+			var xThing:Float = 0;
+			if (showCombo)
+			if (combo >= 10)
+				comboGroup.add(comboSpr);
+
+			var separatedScore:String = Std.string(combo).lpad('0', 3);
+			for (i in 0...separatedScore.length)
+			{
+				var numScore:FlxSprite = new FlxSprite().loadGraphic(Paths.image(uiFolder + 'num' + Std.parseInt(separatedScore.charAt(i)) + uiPostfix));
+				numScore.screenCenter();
+				numScore.x = placement + (43 * daLoop) - 90 + ClientPrefs.data.comboOffset[2];
+				numScore.y += 80 - ClientPrefs.data.comboOffset[3];
+
+				if (!PlayState.isPixelStage)
+					numScore.setGraphicSize(Std.int(numScore.width * 0.5));
+				else
+					numScore.setGraphicSize(Std.int(numScore.width * daPixelZoom));
+				numScore.updateHitbox();
+
+				numScore.acceleration.y = FlxG.random.int(200, 300) * playbackRate * playbackRate;
+				numScore.velocity.y -= FlxG.random.int(140, 160) * playbackRate;
+				numScore.velocity.x = FlxG.random.float(-5, 5) * playbackRate;
+				numScore.visible = !ClientPrefs.data.hideHud;
+				numScore.antialiasing = antialias;
+
+				if (combo >= 10 || combo == 0)
+				if(showComboNum)
+					comboGroup.add(numScore);
+
+				FlxTween.tween(numScore, {alpha: 0}, 0.2 / playbackRate, {
+					onComplete: function(tween:FlxTween)
+					{
+						numScore.destroy();
+					},
+					startDelay: Conductor.crochet * 0.002 / playbackRate
+				});
+
+				daLoop++;
+				if (numScore.x > xThing)
+					xThing = numScore.x;
+			}
+			comboSpr.x = xThing + 50;
+			FlxTween.tween(rating, {alpha: 0}, 0.2 / playbackRate, {
+				startDelay: Conductor.crochet * 0.001 / playbackRate
+			});
+
+			FlxTween.tween(comboSpr, {alpha: 0}, 0.2 / playbackRate, {
+				onComplete: function(tween:FlxTween)
+				{
+					comboSpr.destroy();
+					rating.destroy();
+				},
+				startDelay: Conductor.crochet * 0.002 / playbackRate
+			});
 		}
 	}
 
@@ -4842,9 +4738,10 @@ class PlayState extends MusicBeatState
 		}
 
 		var placement:Float = FlxG.width * 0.35;
+		var breakSprite:FlxSprite = new FlxSprite();
 		// Determinar qué imagen usar
 		var imageName:String = ClientPrefs.data.badShitBreakCombo ? 'comboBroken' : 'miss';
-		var breakSprite:FlxSprite = acquirePopupSprite(breakPopupPool, uiFolder + imageName + uiPostfix, 1, 1, antialias);
+		breakSprite.loadGraphic(Paths.image(uiFolder + imageName + uiPostfix));
 		
 		breakSprite.screenCenter();
 		breakSprite.x = placement - 40;
@@ -4883,10 +4780,12 @@ class PlayState extends MusicBeatState
 			});
 		}
 
+		comboGroup.add(breakSprite);
+
 		FlxTween.tween(breakSprite, {alpha: 0}, 0.2 / playbackRate, {
 			onComplete: function(tween:FlxTween)
 			{
-				releasePopupSprite(breakSprite);
+				breakSprite.destroy();
 			},
 			startDelay: Conductor.crochet * 0.002 / playbackRate
 		});
@@ -5174,7 +5073,7 @@ class PlayState extends MusicBeatState
 
 		noteMissCommon(daNote.noteData, daNote);
 		stagesFunc(function(stage:BaseStage) stage.noteMiss(daNote));
-		var result:Dynamic = callOnLuas('noteMiss', [hasHitScripts() ? notes.members.indexOf(daNote) : 0, daNote.noteData, daNote.noteType, daNote.isSustainNote]);
+		var result:Dynamic = callOnLuas('noteMiss', [notes.members.indexOf(daNote), daNote.noteData, daNote.noteType, daNote.isSustainNote]);
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) callOnHScript('noteMiss', [daNote]);
 	}
 
@@ -5300,8 +5199,7 @@ class PlayState extends MusicBeatState
 		// Opponent Mode: Update the correct character's holdTimer
 		var opponentChar:Character = playOpponent ? boyfriend : dad;
 		
-		final noteIndex:Int = hasHitScripts() ? notes.members.indexOf(note) : 0;
-		var result:Dynamic = callOnLuas('opponentNoteHitPre', [noteIndex, Math.abs(note.noteData), note.noteType, note.isSustainNote]);
+		var result:Dynamic = callOnLuas('opponentNoteHitPre', [notes.members.indexOf(note), Math.abs(note.noteData), note.noteType, note.isSustainNote]);
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) result = callOnHScript('opponentNoteHitPre', [note]);
 
 		if(result == LuaUtils.Function_Stop) return;
@@ -5347,7 +5245,7 @@ class PlayState extends MusicBeatState
 			health = Math.max(OPPONENT_DRAIN_FLOOR, health - note.hitHealth * healthLoss);
 		
 		stagesFunc(function(stage:BaseStage) stage.opponentNoteHit(note));
-		var result:Dynamic = callOnLuas('opponentNoteHit', [noteIndex, Math.abs(note.noteData), note.noteType, note.isSustainNote]);
+		var result:Dynamic = callOnLuas('opponentNoteHit', [notes.members.indexOf(note), Math.abs(note.noteData), note.noteType, note.isSustainNote]);
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) callOnHScript('opponentNoteHit', [note]);
 
 		spawnHoldSplashOnNote(note);
@@ -5359,6 +5257,7 @@ class PlayState extends MusicBeatState
 		if (!note.isSustainNote)
 			invalidateNote(note);
 	}
+
 	public function goodNoteHit(note:Note):Void
 	{
 		// Opponent Mode: Update the correct character's holdTimer
@@ -5367,12 +5266,11 @@ class PlayState extends MusicBeatState
 		if(note.wasGoodHit) return;
 		if(cpuControlled && note.ignoreNote) return;
 
-		final noteIndex:Int = hasHitScripts() ? notes.members.indexOf(note) : 0;
 		var isSus:Bool = note.isSustainNote; //GET OUT OF MY HEAD, GET OUT OF MY HEAD, GET OUT OF MY HEAD
 		var leData:Int = Math.round(Math.abs(note.noteData));
 		var leType:String = note.noteType;
 
-		var result:Dynamic = callOnLuas('goodNoteHitPre', [noteIndex, leData, leType, isSus]);
+		var result:Dynamic = callOnLuas('goodNoteHitPre', [notes.members.indexOf(note), leData, leType, isSus]);
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) result = callOnHScript('goodNoteHitPre', [note]);
 
 		if(result == LuaUtils.Function_Stop) return;
@@ -5487,7 +5385,7 @@ class PlayState extends MusicBeatState
 		}
 
 		stagesFunc(function(stage:BaseStage) stage.goodNoteHit(note));
-		var result:Dynamic = callOnLuas('goodNoteHit', [noteIndex, leData, leType, isSus]);
+		var result:Dynamic = callOnLuas('goodNoteHit', [notes.members.indexOf(note), note.noteData, note.noteType, note.isSustainNote]);
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) callOnHScript('goodNoteHit', [note]);
 		spawnHoldSplashOnNote(note);
 		
@@ -6600,4 +6498,3 @@ class PlayState extends MusicBeatState
 			FlxG.signals.preUpdate.add(checkForResync);
 	}
 }
-

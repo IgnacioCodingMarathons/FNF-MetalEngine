@@ -242,10 +242,10 @@ class StorageUtil
 		}
 	}
 
-	private static function hasRequiredPermissions():Bool
-	{
-		if (readStorageType() == 'INTERNAL')
-			return true;
+		public static function hasRequiredPermissions():Bool
+		{
+			if (readStorageType() == 'INTERNAL')
+				return true;
 
 		final granted = AndroidPermissions.getGrantedPermissions();
 		
@@ -286,6 +286,25 @@ class StorageUtil
 		}
 
 		initializeStorageDirectories();
+	}
+
+	public static function getPermissionStatus():String
+	{
+		if (readStorageType() == 'INTERNAL')
+			return 'INTERNAL storage: no extra permission required.';
+
+		if (AndroidVersion.SDK_INT >= AndroidVersionCode.TIRAMISU)
+			return AndroidEnvironment.isExternalStorageManager()
+				? 'EXTERNAL storage: all-files access granted.'
+				: 'EXTERNAL storage: all-files access required.';
+
+		final granted = AndroidPermissions.getGrantedPermissions();
+		final hasLegacyPermission = granted.contains('android.permission.READ_EXTERNAL_STORAGE')
+			|| granted.contains('android.permission.WRITE_EXTERNAL_STORAGE');
+
+		return hasLegacyPermission
+			? 'EXTERNAL storage: legacy storage permission granted.'
+			: 'EXTERNAL storage: legacy storage permission required.';
 	}
 
 	private static function initializeStorageDirectories():Void

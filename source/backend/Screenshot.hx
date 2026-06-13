@@ -5,7 +5,7 @@ import flixel.util.FlxColor;
 import sys.FileSystem;
 
 #if windows
-import lenin.slushithings.windows.WindowsAPI;
+import slushithings.windows.WindowsAPI;
 #end
 
 /**
@@ -127,3 +127,4 @@ class Screenshot
         }
     }
 }
+

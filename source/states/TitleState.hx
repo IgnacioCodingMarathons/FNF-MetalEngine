@@ -2,6 +2,7 @@ package states;
 
 import backend.AssetLoader;
 import backend.ClientPrefs;
+import backend.ui.PsychUIButton;
 
 import flixel.input.keyboard.FlxKey;
 import flixel.graphics.frames.FlxFrame;
@@ -20,6 +21,10 @@ import hxvlc.flixel.FlxVideoSprite;
 
 #if mobile
 import mobile.backend.TouchUtil;
+#end
+
+#if android
+import mobile.states.AndroidPermissionsState;
 #end
 
 typedef TitleData =
@@ -76,6 +81,9 @@ class TitleState extends MusicBeatState
 	public var introFinished:Bool = false;
 	public var skipTimer:Float = 0;
 	public var canSkip:Bool = true;
+	#if android
+	public var androidToolsButton:PsychUIButton;
+	#end
 
 	override public function create():Void
 	{
@@ -140,6 +148,10 @@ class TitleState extends MusicBeatState
 		{
 			startIntro();
 		}
+		#end
+
+		#if android
+		createAndroidToolsButton();
 		#end
 	}
 
@@ -307,6 +319,26 @@ class TitleState extends MusicBeatState
 		}
 		//else trace('[WARN] No Title JSON detected, using default values.');
 	}
+
+	#if android
+	function createAndroidToolsButton():Void
+	{
+		if (androidToolsButton != null)
+		{
+			remove(androidToolsButton);
+			androidToolsButton.destroy();
+		}
+
+		androidToolsButton = new PsychUIButton(FlxG.width - 210, FlxG.height - 54, 'ANDROID TOOLS', function()
+		{
+			FlxTransitionableState.skipNextTransIn = true;
+			FlxTransitionableState.skipNextTransOut = true;
+			MusicBeatState.switchState(new AndroidPermissionsState());
+		}, 190, 36);
+		androidToolsButton.scrollFactor.set();
+		add(androidToolsButton);
+	}
+	#end
 
 	function easterEggData()
 	{
