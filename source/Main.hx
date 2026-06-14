@@ -90,6 +90,9 @@ class Main extends Sprite
 		StorageUtil.requestPermissions();
 		#end
 		Sys.setCwd(StorageUtil.getStorageDirectory());
+		#if android
+		backend.Language.reloadPhrases();
+		#end
 		#end
 		backend.CrashHandler.init();
 

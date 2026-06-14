@@ -1,6 +1,9 @@
 package backend.ui;
 
 import backend.ui.PsychUIBox.UIStyleData;
+#if mobile
+import backend.MusicBeatSubstate;
+#end
 
 class PsychUIDropDownMenu extends PsychUIInputText
 {
@@ -88,6 +91,11 @@ class PsychUIDropDownMenu extends PsychUIInputText
 	{
 		var lastFocus = PsychUIInputText.focusOn;
 		super.update(elapsed);
+
+		#if mobile
+		if(handleMobileSelectorInput())
+			return;
+		#end
 		
 		if(FlxG.mouse.justPressed)
 		{
@@ -235,6 +243,52 @@ class PsychUIDropDownMenu extends PsychUIInputText
 		return false;
 	}
 
+	#if mobile
+	function handleMobileSelectorInput():Bool
+	{
+		if(FlxG.state == null)
+			return false;
+
+		if(FlxG.state.subState != null)
+			return true;
+
+		var pressedDropdown:Bool = FlxG.mouse.justPressed && (FlxG.mouse.overlaps(button, camera) || FlxG.mouse.overlaps(this, camera));
+		if(!pressedDropdown)
+		{
+			for(touch in FlxG.touches.list)
+			{
+				if(touch != null && touch.justPressed && (touch.overlaps(button, camera) || touch.overlaps(this, camera)))
+				{
+					pressedDropdown = true;
+					break;
+				}
+			}
+		}
+
+		if(pressedDropdown)
+		{
+			button.animation.play('pressed', true);
+			PsychUIInputText.focusOn = null;
+			showDropDown(false);
+			openMobileSelector();
+			button.animation.play('normal', true);
+		}
+
+		return true;
+	}
+
+	function openMobileSelector():Void
+	{
+		if(list == null || list.length < 1 || FlxG.state == null || FlxG.state.subState != null)
+			return;
+
+		FlxG.state.openSubState(new PsychUIDropDownMobileSelector(list.copy(), selectedIndex, function(index:Int, label:String)
+		{
+			clickedOn(index, label);
+		}));
+	}
+	#end
+
 	function addOption(option:String)
 	{
 		@:bypassAccessor list.push(option);
@@ -264,6 +318,11 @@ class PsychUIDropDownMenu extends PsychUIInputText
 
 		if(selectedLabel != null) selectedLabel = selected;
 		return v;
+	}
+
+	override function destroy()
+	{
+		super.destroy();
 	}
 }
 
@@ -329,3 +388,148 @@ class PsychUIDropDownItem extends FlxSpriteGroup
 		return v;
 	}
 }
+
+#if mobile
+class PsychUIDropDownMobileSelector extends MusicBeatSubstate
+{
+	static inline var DROPDOWN_PAGE_SIZE:Int = 7;
+
+	var options:Array<String>;
+	var selectedIndex:Int;
+	var onPick:Int->String->Void;
+	var currentPage:Int = 0;
+	var previousPersistentUpdate:Bool = false;
+	var panel:FlxSprite;
+	var titleText:FlxText;
+
+	public function new(options:Array<String>, selectedIndex:Int, onPick:Int->String->Void)
+	{
+		this.options = options != null ? options : [];
+		this.selectedIndex = selectedIndex;
+		this.onPick = onPick;
+
+		if(FlxG.state != null)
+		{
+			previousPersistentUpdate = FlxG.state.persistentUpdate;
+			FlxG.state.persistentUpdate = false;
+		}
+
+		super();
+	}
+
+	override function create()
+	{
+		super.create();
+
+		cameras = [FlxG.cameras.list[FlxG.cameras.list.length - 1]];
+
+		var overlay = new FlxSprite().makeGraphic(1, 1, FlxColor.BLACK);
+		overlay.scale.set(FlxG.width, FlxG.height);
+		overlay.updateHitbox();
+		overlay.alpha = 0.75;
+		overlay.cameras = cameras;
+		add(overlay);
+
+		var panelWidth:Int = Std.int(Math.min(FlxG.width - 40, 620));
+		var panelHeight:Int = Std.int(Math.min(FlxG.height - 60, 80 + (DROPDOWN_PAGE_SIZE * 42) + 80));
+		panel = new FlxSprite().makeGraphic(1, 1, FlxColor.BLACK);
+		panel.alpha = 0.9;
+		panel.scale.set(panelWidth, panelHeight);
+		panel.updateHitbox();
+		panel.screenCenter();
+		panel.cameras = cameras;
+		add(panel);
+
+		titleText = new FlxText(panel.x + 20, panel.y + 18, panelWidth - 40, 'Choose an option', 20);
+		titleText.alignment = CENTER;
+		titleText.cameras = cameras;
+		add(titleText);
+
+		currentPage = getPageForIndex(selectedIndex);
+		refreshPage();
+	}
+
+	function refreshPage():Void
+	{
+		while(members.length > 3)
+			remove(members[members.length - 1], true);
+
+		var panelWidth:Int = Std.int(panel.width);
+		var startIndex:Int = currentPage * DROPDOWN_PAGE_SIZE;
+		var endIndex:Int = Std.int(Math.min(options.length, startIndex + DROPDOWN_PAGE_SIZE));
+		var buttonY:Float = titleText.y + titleText.height + 18;
+
+		for(index in startIndex...endIndex)
+		{
+			var optionIndex:Int = index;
+			var label:String = options[optionIndex];
+			var optionButton = new PsychUIButton(panel.x + 20, buttonY, label, function()
+			{
+				if(onPick != null)
+					onPick(optionIndex, label);
+				close();
+			});
+			optionButton.resize(panelWidth - 40, 34);
+			optionButton.cameras = cameras;
+
+			if(optionIndex == selectedIndex)
+			{
+				optionButton.normalStyle.bgColor = 0xFF0066FF;
+				optionButton.normalStyle.textColor = FlxColor.WHITE;
+			}
+
+			add(optionButton);
+			buttonY += 38;
+		}
+
+		var totalPages:Int = Std.int(Math.max(1, Math.ceil(options.length / DROPDOWN_PAGE_SIZE)));
+		if(totalPages > 1)
+		{
+			var prevButton = new PsychUIButton(panel.x + 20, panel.y + panel.height - 46, '< Prev', function()
+			{
+				currentPage = Std.int(Math.max(0, currentPage - 1));
+				refreshPage();
+			});
+			prevButton.resize(110, 28);
+			prevButton.cameras = cameras;
+			prevButton.active = prevButton.visible = currentPage > 0;
+			add(prevButton);
+
+			var nextButton = new PsychUIButton(panel.x + panel.width - 130, panel.y + panel.height - 46, 'Next >', function()
+			{
+				currentPage = Std.int(Math.min(totalPages - 1, currentPage + 1));
+				refreshPage();
+			});
+			nextButton.resize(110, 28);
+			nextButton.cameras = cameras;
+			nextButton.active = nextButton.visible = currentPage < totalPages - 1;
+			add(nextButton);
+
+			var pageText = new FlxText(panel.x, panel.y + panel.height - 44, Std.int(panel.width), 'Page ${currentPage + 1} / $totalPages', 16);
+			pageText.alignment = CENTER;
+			pageText.cameras = cameras;
+			add(pageText);
+		}
+
+		var cancelButton = new PsychUIButton(0, panel.y + panel.height - 46, 'Cancel', close);
+		cancelButton.resize(110, 28);
+		cancelButton.x = panel.x + (panel.width - cancelButton.width) / 2;
+		cancelButton.cameras = cameras;
+		add(cancelButton);
+	}
+
+	inline function getPageForIndex(index:Int):Int
+	{
+		if(index < 0)
+			return 0;
+		return Std.int(index / DROPDOWN_PAGE_SIZE);
+	}
+
+	override function close()
+	{
+		if(FlxG.state != null)
+			FlxG.state.persistentUpdate = previousPersistentUpdate;
+		super.close();
+	}
+}
+#end

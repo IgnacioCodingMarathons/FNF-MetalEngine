@@ -282,6 +282,12 @@ class AlphaCharacter extends FlxSprite
 	static var cachedAlphabetRequest:String = null;
 	static var cachedAlphabetFrames:FlxAtlasFrames = null;
 
+	public static function clearAlphabetCache():Void
+	{
+		cachedAlphabetRequest = null;
+		cachedAlphabetFrames = null;
+	}
+
 	public static function getAlphabetFrames(request:String = 'alphabet'):FlxAtlasFrames
 	{
 		if (cachedAlphabetFrames != null && cachedAlphabetRequest == request)
@@ -305,6 +311,7 @@ class AlphaCharacter extends FlxSprite
 		allLetters = new Map<String, Null<Letter>>();
 		try
 		{
+			clearAlphabetCache();
 			var rawData:String = AssetLoader.loadText(path);
 			if(rawData == null || rawData.length == 0)
 				throw 'Missing alphabet data: $path';
@@ -455,7 +462,6 @@ class AlphaCharacter extends FlxSprite
 	{
 		if (animation.curAnim == null)
 		{
-			trace(character);
 			return;
 		}
 

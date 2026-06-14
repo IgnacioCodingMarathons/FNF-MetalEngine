@@ -250,10 +250,12 @@ class CharacterEditorState extends MusicBeatState implements PsychUIEventHandler
 	function addCharacter(reload:Bool = false)
 	{
 		var pos:Int = -1;
+		var keepAnimatedIcon:Null<Bool> = null;
 		if(character != null)
 		{
 			pos = members.indexOf(character);
-			var wasAnimatedIcon = character.animatedIcon;
+			if(reload && animatedIconCheckBox != null)
+				keepAnimatedIcon = animatedIconCheckBox.checked;
 			remove(character);
 			character.destroy();
 		}
@@ -261,11 +263,14 @@ class CharacterEditorState extends MusicBeatState implements PsychUIEventHandler
 		var isPlayer = (reload ? character.isPlayer : !predictCharacterIsNotPlayer(_char));
 		character = new Character(0, 0, _char, isPlayer);
 
-		if(reload && animatedIconCheckBox != null) {
-			character.animatedIcon = animatedIconCheckBox.checked;
+		if(keepAnimatedIcon != null)
+			character.animatedIcon = keepAnimatedIcon;
+
+		if(!reload && character.editorIsPlayer != null && isPlayer != character.editorIsPlayer)
+		{
+			character.isPlayer = !character.isPlayer;
+			character.flipX = (character.originalFlipX != character.isPlayer);
 		}
-		character.isPlayer = !character.isPlayer;
-		character.flipX = (character.originalFlipX != character.isPlayer);
 		if(check_player != null) check_player.checked = character.isPlayer;
 		
 		character.debugMode = true;
@@ -1195,16 +1200,16 @@ class CharacterEditorState extends MusicBeatState implements PsychUIEventHandler
 		var mouseX = FlxG.mouse.screenX;
 		var mouseY = FlxG.mouse.screenY;
 
-		if (UI_box != null && UI_box.visible)
+		if (UI_box != null && UI_box.visible && UI_box.bg != null)
 		{
-			if (mouseX >= UI_box.x && mouseX <= UI_box.x + UI_box.width &&
-				mouseY >= UI_box.y && mouseY <= UI_box.y + UI_box.height)
+			if (mouseX >= UI_box.x && mouseX <= UI_box.x + UI_box.bg.width &&
+				mouseY >= UI_box.y && mouseY <= UI_box.y + UI_box.bg.height)
 				return true;
 			
-			if (UI_characterbox != null && UI_characterbox.visible)
+			if (UI_characterbox != null && UI_characterbox.visible && UI_characterbox.bg != null)
 			{
-				if (mouseX >= UI_characterbox.x && mouseX <= UI_characterbox.x + UI_characterbox.width &&
-					mouseY >= UI_characterbox.y && mouseY <= UI_characterbox.y + UI_characterbox.height)
+				if (mouseX >= UI_characterbox.x && mouseX <= UI_characterbox.x + UI_characterbox.bg.width &&
+					mouseY >= UI_characterbox.y && mouseY <= UI_characterbox.y + UI_characterbox.bg.height)
 					return true;
 			}
 		}
@@ -1419,6 +1424,9 @@ class CharacterEditorState extends MusicBeatState implements PsychUIEventHandler
 
 	function onMouseEvent(e:MouseEvent):Void
 	{
+		if (!controls.mobileC || FlxG.stage == null || UI_box == null || UI_characterbox == null)
+			return;
+
 		switch (e.type)
 		{
 			case MouseEvent.MOUSE_DOWN:
@@ -1439,4 +1447,16 @@ class CharacterEditorState extends MusicBeatState implements PsychUIEventHandler
 				isDragging = false;
 		}
     }
+
+	override function destroy()
+	{
+		if (controls.mobileC && FlxG.stage != null)
+		{
+			FlxG.stage.removeEventListener(MouseEvent.MOUSE_DOWN, onMouseEvent);
+			FlxG.stage.removeEventListener(MouseEvent.MOUSE_MOVE, onMouseEvent);
+			FlxG.stage.removeEventListener(MouseEvent.MOUSE_UP, onMouseEvent);
+		}
+		isDragging = false;
+		super.destroy();
+	}
 }
