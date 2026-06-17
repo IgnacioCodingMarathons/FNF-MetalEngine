@@ -9,6 +9,8 @@ import states.TitleState;
 
 // Add a variable here and it will get automatically saved
 @:structInit class SaveVariables {
+	// oooOOOOhhhhhhh BuGfIxInG dude the plus team didnt think of this?!
+	public var showIntroVideo:Bool = true;
 	// Mobile and Mobile Controls Releated
 	public var extraButtons:String = "NONE"; // mobile extra button option
 	public var hitboxPos:Bool = true; // hitbox extra button position option
@@ -184,15 +186,15 @@ import states.TitleState;
 	public var gameJoltToken:String = '';
 	public var gameJoltGameId:String = '';
 	public var gameJoltPrivateKey:String = '';
-	public var pauseCountdown:Bool = false; // Enable countdown when resuming from pause
-	public var heyIntro:Bool = false; // Boyfriend and Girlfriend do Hey! animation on countdown Go!
+	public var pauseCountdown:Bool = true; // Enable countdown when resuming from pause
+	public var heyIntro:Bool = true; // Boyfriend and Girlfriend do Hey! animation on countdown Go!
 	public var breakTimer:Bool = false; // Show timer when next notes are approaching
 	public var disableLargeChartGC:Bool = false; // Skip manual GC pass for large charts to reduce loading stutters
 	public var legacyMemoryManagement:Bool = false; // Use Psych 0.7.3 memory management style (no GPU disposal)
 	public var legacyFileSystemAccess:Bool = false; // Allow direct FileSystem.readDirectory access like in Psych 0.7.3
 	public var legacyShaderInit:Bool = false; // Use Psych 0.7.3 shader initialization (glslVersion parameter, direct FlxRuntimeShader)
 	public var autoConvertChartsToV2:Bool = false; // Automatically convert psych_v1 charts to psych_v2 format when loading
-	public var useScriptableCustomStates:Bool = false; // Allow scripted state overrides through ScriptableState and CustomState
+	public var useScriptableCustomStates:Bool = true; // Allow scripted state overrides through ScriptableState and CustomState
 }
 
 class ClientPrefs {
