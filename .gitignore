@@ -29,3 +29,6 @@ art/build_html-debug.bat
 
 ### my keys
 *.keystore
+
+### BUILDING IS ALL
+buildingIsAll.sh

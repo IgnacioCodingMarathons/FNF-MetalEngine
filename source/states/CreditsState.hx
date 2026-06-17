@@ -79,6 +79,15 @@ class CreditsState extends MusicBeatState
 		#end
 
 		var defaultList:Array<Array<String>> = [ //Name - Icon name - Description - Link - BG Color
+			['Metal Engine Team'],
+			[
+			'CoathangerGMAP',
+			"coathanger",              
+			"Programmer of Metal Engine",                        
+			"https://www.youtube.com/@CoathangerGMAP",
+			"A6A6A6"
+			],
+			['']
 			['Plus Engine Team'],
 			[
 			'Lenin Asto',
