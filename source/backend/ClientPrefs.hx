@@ -25,7 +25,7 @@ import states.TitleState;
 	#end
 	public var hitboxType:String = "Gradient";
 	public var popUpRating:Bool = true;
-	public var versionTextOnGameplay:Bool = false;
+	public var versionTextOnGameplay:Bool = true;
 	public var gameOverVibration:Bool = false;
 	public var fpsRework:Bool = true;
 	public var mobileReceptorAlign:Bool = false; // Align receptors with hitbox lanes (mobile only, may break scripts)

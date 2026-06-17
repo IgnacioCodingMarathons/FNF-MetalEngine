@@ -108,6 +108,8 @@
 	
 	<assets path='art/readme.txt' rename='do NOT readme.txt' unless="mobile" />
 
+	<assets path='art/UFL.txt' rename='Ubuntu Font License.txt' embed='true' />
+
 	<!-- OpenAL config -->
 	<section if="desktop">
 		<assets path="alsoft.txt" rename="plugins/alsoft.ini" type="text" if="windows"/>
