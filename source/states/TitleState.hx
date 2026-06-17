@@ -279,7 +279,7 @@ class TitleState extends MusicBeatState
 	var enterPosition:FlxPoint = FlxPoint.get(100, 576);
 	
 	var useIdle:Bool = false;
-	var musicBPM:Float = 102;
+	var musicBPM:Float = 180;
 	var danceLeftFrames:Array<Int> = [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29];
 	var danceRightFrames:Array<Int> = [30, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
 
@@ -638,9 +638,9 @@ class TitleState extends MusicBeatState
 					FlxG.sound.playMusic(Paths.music('freakyMenu'), 0);
 					FlxG.sound.music.fadeIn(4, 0, 0.7);
 				case 2:
-					createCoolText(['Psych Engine by\n Shadow Mario'], -30);
+					createCoolText(['Plus Engine by\n   Lenin Asto'], -30);
 				case 4:
-					addMoreText('Plus Engine by\n   Lenin Asto', 130);
+					addMoreText('Metal Engine by\n   CoathangerGMAP', 130);
 				case 5:
 					deleteCoolText();
 				case 6:

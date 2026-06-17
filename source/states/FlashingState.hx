@@ -28,14 +28,15 @@ class FlashingState extends MusicBeatState
 		add(texts);
 
 		var warnText:FlxText = new FlxText(0, 0, FlxG.width,
-			"Hey, watch out!\n
-			This Mod contains some flashing lights!\n
-			Do you wish to disable them?");
+			"HEY DUDE\n
+			engine contains flashing lights. DUHHH DUH DUH DUHHHHHHH\n
+			if you are epileptic disable em so you dont get a seizure\n
+			disable them or nah");
 		warnText.setFormat(Paths.font("vcr.ttf"), 32, FlxColor.WHITE, CENTER);
 		warnText.screenCenter(Y);
 		texts.add(warnText);
 
-		final keys = ["Yes", "No"];
+		final keys = ["yep", "nah"];
 		for (i in 0...keys.length) {
 			final button = new FlxText(0, 0, FlxG.width, keys[i]);
 			button.setFormat(Paths.font("vcr.ttf"), 32, FlxColor.WHITE, CENTER);

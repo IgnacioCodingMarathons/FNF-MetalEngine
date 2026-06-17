@@ -87,7 +87,7 @@ class CreditsState extends MusicBeatState
 			"https://www.youtube.com/@CoathangerGMAP",
 			"A6A6A6"
 			],
-			['']
+			[''],
 			['Plus Engine Team'],
 			[
 			'Lenin Asto',
