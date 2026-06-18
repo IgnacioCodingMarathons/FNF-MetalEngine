@@ -7,6 +7,7 @@ import states.GoAwayState;
 import options.OptionsState;
 import flixel.text.FlxText;
 import backend.ClientPrefs;
+import objects.MainMenuFloaties;
 
 enum MainMenuColumn {
 	LEFT;
@@ -20,7 +21,7 @@ class MainMenuState extends MusicBeatState
     public static var plusEngineVersion:String = '1.3'; // Nothing interesting =)
 	public static var psychEngineVersion:String = "1.0.4 (" + plusEngineVersion + ")"; // This is also used for Discord RPC
 	public static var curSelected:Int = 0;
-	public static var curColumn:MainMenuColumn = CENTER;
+	public static var curColumn:MainMenuColumn = LEFT;
 	public var allowMouse:Bool = true; //Turn this off to block mouse movement in menus
 
 	public var menuItems:FlxTypedGroup<FlxSprite>;
@@ -140,7 +141,7 @@ class MainMenuState extends MusicBeatState
 
 	function createMenuItem(name:String, x:Float, y:Float):FlxSprite
 	{
-		var menuItem:FlxSprite = new FlxSprite(x, y);
+		var menuItem:MainMenuFloaties = new MainMenuFloaties(x, y);
 		menuItem.frames = Paths.getSparrowAtlas('mainmenu/menu_$name');
 		menuItem.animation.addByPrefix('idle', '$name idle', 24, true);
 		menuItem.animation.addByPrefix('selected', '$name selected', 24, true);

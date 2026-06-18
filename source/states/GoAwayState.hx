@@ -2,6 +2,7 @@ package states;
 import flixel.FlxG;
 import flixel.FlxSprite;
 import backend.Paths;
+import states.TitleState;
 class GoAwayState extends MusicBeatState
 {
     public var jeffy:FlxSprite;
@@ -23,7 +24,7 @@ class GoAwayState extends MusicBeatState
         FlxG.sound.play(Paths.sound('jeffyJumpscare'), 1, false, null, true, function() {
             if (!transitioning) {
                 transitioning = true;
-                MusicBeatState.switchState(new MainMenuState());
+                MusicBeatState.switchState(new TitleState());
             }
         });
     }

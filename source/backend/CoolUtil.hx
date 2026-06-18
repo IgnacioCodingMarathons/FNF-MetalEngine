@@ -4,7 +4,7 @@ import backend.AssetLoader;
 import openfl.utils.AssetType;
 import openfl.utils.Assets;
 import lime.utils.Assets as LimeAssets;
-
+import sys.thread.Thread;
 #if cpp
 @:cppFileCode('#include <thread>')
 #end
@@ -274,11 +274,19 @@ class CoolUtil
 
 	public static function showPopUp(message:String, title:String):Void
 	{
-		/*#if android
-		AndroidTools.showAlertDialog(title, message, {name: "OK", func: null}, null);
-		#else*/
-		FlxG.stage.window.alert(message, title);
-		//#end
+		FlxG.autoPause = false;
+		if (FlxG.state != null)
+			FlxG.state.active = false;
+		FlxG.sound.playMusic(Paths.music('crashHandler'), 0);
+		Thread.create(function() {
+			/*#if android
+			AndroidTools.showAlertDialog(title, message, {name: "OK", func: null}, null);
+			#else*/
+			FlxG.stage.window.alert(message, title);
+			//#end
+			if (FlxG.state != null)
+				FlxG.state.active = false;
+		});
 	}
 
 	#if cpp
