@@ -11,6 +11,8 @@ import states.TitleState;
 @:structInit class SaveVariables {
 	// oooOOOOhhhhhhh BuGfIxInG dude the plus team didnt think of this?!
 	public var showIntroVideo:Bool = true;
+	// extra stuff
+	public var editorJumpscare:Bool = false;
 	// Mobile and Mobile Controls Releated
 	public var extraButtons:String = "NONE"; // mobile extra button option
 	public var hitboxPos:Bool = true; // hitbox extra button position option

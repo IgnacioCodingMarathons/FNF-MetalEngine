@@ -72,6 +72,12 @@ class GameplaySettingsSubState extends BaseOptionsMenu
 			BOOL);
 		addOption(option);
 
+		var option:Option = new Option('Editor Jumpscare',
+			"If checked, Jeffy jumpscares you when you enter an editor on the main menu or during a song!",
+			'editorJumpscare',
+			BOOL);
+		addOption(option);
+
 		var option:Option = new Option('Hitsound in what way',
 			'If checked, note and keys do a hitsound when pressed!, else just when notes are hit!',
 			'hitsoundType',

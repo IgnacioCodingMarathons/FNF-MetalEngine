@@ -274,6 +274,8 @@ class EsES
         "description_disable_reset_button" => "Si está marcado, pulsar reiniciar no hará nada",
         "setting_pop_up_score" => "Sprite de combo y rating",
         "description_pop_up_score" => "Si está activado, los sprite de combo y rating aparecerán.",
+        "setting_editor_jumpscare" => "Jumpscare de editores",
+        "description_editor_jumpscare" => "Jeffy te da un jumpscare si entras un editor en el menu o durante una cancion!",
         "description_hitsound_volume" => "Las notas divertidas hacen \"¡tic!\" cuando las tocas",
         "setting_rating_offset" => "Desfase de calificación",
         "description_rating_offset" => "Cambia qué tan tarde/temprano tienes que golpear para un \"¡Sick!\"\nLos valores más altos significan que tienes que golpear más tarde",

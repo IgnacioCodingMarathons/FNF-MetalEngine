@@ -3545,7 +3545,14 @@ class PlayState extends MusicBeatState
 		DiscordClient.resetClientID();
 		#end
 
-		MusicBeatState.switchState(new ChartingState());
+		if (ClientPrefs.data.editorJumpscare)
+		{
+			MusicBeatState.switchState(new GoAwayState());
+		}
+		else
+		{
+			MusicBeatState.switchState(new ChartingState());
+		}
 	}
 
 	function openCharacterEditor()
@@ -3563,7 +3570,14 @@ class PlayState extends MusicBeatState
 			opponentVocals.pause();
 
 		#if DISCORD_ALLOWED DiscordClient.resetClientID(); #end
-		MusicBeatState.switchState(new CharacterEditorState(SONG.player2));
+		if (ClientPrefs.data.editorJumpscare)
+		{
+			MusicBeatState.switchState(new GoAwayState());
+		}
+		else
+		{
+			MusicBeatState.switchState(new CharacterEditorState(SONG.player2));
+		}
 	}
 
 	public var isDead:Bool = false; //Don't mess with this on Lua!!!

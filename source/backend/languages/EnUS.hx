@@ -281,6 +281,8 @@ class EnUS
         "description_pop_up_score" => "If checked, shows combo and rating pop-ups when you hit notes.",
         "setting_disable_reset_button" => "Disable Reset Button",
         "description_disable_reset_button" => "If checked, pressing Reset won't do anything.",
+        "setting_editor_jumpscare" => "Editor Jumpscare",
+        "description_editor_jumpscare" => "If checked, Jeffy jumpscares you when you enter an editor on the main menu or during a song!",
         "setting_hitsound_volume" => "Hitsound Volume",
         "description_hitsound_volume" => "Funny notes go \"Tick!\" when you hit them.",
         "setting_rating_offset" => "Rating Offset",

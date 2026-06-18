@@ -3,8 +3,10 @@ package states;
 import flixel.FlxObject;
 import flixel.effects.FlxFlicker;
 import states.editors.MasterEditorMenu;
+import states.GoAwayState;
 import options.OptionsState;
 import flixel.text.FlxText;
+import backend.ClientPrefs;
 
 enum MainMenuColumn {
 	LEFT;
@@ -352,7 +354,14 @@ class MainMenuState extends MusicBeatState
 			{
 				selectedSomethin = true;
 				FlxG.mouse.visible = false;
-				MusicBeatState.switchState(new MasterEditorMenu());
+				if (ClientPrefs.data.editorJumpscare)
+				{
+					MusicBeatState.switchState(new GoAwayState());
+				}
+				else
+				{
+					MusicBeatState.switchState(new MasterEditorMenu());
+				}
 			}
 
 			#if mobile
