@@ -12,7 +12,6 @@ import objects.NoteSplash;
 import backend.MusicBeatState;
 import backend.MusicBeatSubstate;
 import backend.Discord;
-import polymod.Polymod;
 #if LUA_ALLOWED
 import psychlua.FunkinLua;
 #end
@@ -767,8 +766,7 @@ class HScript extends Iris
 		// unsandboxing things
 		set('sys', Sys);
 		set('Sys', Sys);
-		set('polymod', Polymod);
-		set('Polymod', Polymod);
+		//set('Polymod', Polymod);
 		set('hscript', this);
 		set('HScript', this);
 	}
