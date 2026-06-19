@@ -13,7 +13,6 @@ import backend.MusicBeatState;
 import backend.MusicBeatSubstate;
 import backend.Discord;
 import polymod.Polymod;
-import hxcodec.flixel;
 #if LUA_ALLOWED
 import psychlua.FunkinLua;
 #end
@@ -772,9 +771,6 @@ class HScript extends Iris
 		set('Polymod', Polymod);
 		set('hscript', this);
 		set('HScript', this);
-
-		// hxcodec flixel because they forgot DOODE
-		set('hxcodec.flixel', flixel);
 	}
 
 	#if LUA_ALLOWED

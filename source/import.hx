@@ -95,8 +95,5 @@ import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.addons.transition.FlxTransitionableState;
 import shaders.flixel.system.FlxShader;
 
-// hxcodec
-import hxcodec.flixel;
-
 using StringTools;
 #end
