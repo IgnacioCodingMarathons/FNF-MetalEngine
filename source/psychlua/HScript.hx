@@ -94,16 +94,6 @@ class HScript extends Iris
 	
 	// Static initializer for Iris security configuration and import redirects
 	static var __irisConfigured:Bool = {
-		// Configure Iris blocklist for security (system access, macros, etc.)
-		Iris.blocklistImports = [
-			"sys.io",
-			"sys.FileSystem",  
-			"Sys",
-			"haxe.macro",
-			"polymod",
-			"hscript"
-		];
-
 		Iris.proxyImports.set("flixel.Math.FlxPoint", CustomFlxPoint);
 		Iris.proxyImports.set("flash.filters.ShaderFilter", flash.filters.ShaderFilter);
 		
