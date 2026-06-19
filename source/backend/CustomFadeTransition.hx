@@ -211,7 +211,7 @@ class CustomFadeTransition extends MusicBeatSubstate {
 		add(eventText);
 
 		try {
-			FlxG.sound.play(Paths.sound('FadeTransition'), 0.4);
+			FlxG.sound.play(Paths.sound('fadeTransition/open'), 0.4);
 		} catch (e:Dynamic) {}
 
 		topDoorTween = addTween(FlxTween.tween(topDoor, {y: -height}, duration, {
@@ -263,6 +263,10 @@ class CustomFadeTransition extends MusicBeatSubstate {
 		add(waterMark);
 		add(eventText);
 
+		try {
+			FlxG.sound.play(Paths.sound('fadeTransition/close'), 0.4);
+		} catch (e:Dynamic) {}
+		
 		textTween = addTween(FlxTween.tween(waterMark, {y: originalWaterMarkY, alpha: 1}, duration, {
 			ease: FlxEase.expoInOut
 		}));
